@@ -1,9 +1,12 @@
-# Rowing App — v1 "Connect & Display"
+# Rowing App — v2 "On the Water"
 
-A browser dashboard for a **Concept2 PM5** monitor. It connects over **Web Bluetooth**
-and shows live pace, stroke rate, distance, elapsed time and watts in numbers you can
-read from the rowing seat. A built-in simulator means you can work on the UI without
-sitting on the erg.
+A browser app for a **Concept2 PM5** monitor. It connects over **Web Bluetooth**, puts
+you in a boat on a lake at dawn, and floats live pace, stroke rate, distance, elapsed
+time and watts over the scene as a HUD you can read from the rowing seat. A built-in
+simulator means you can work on the UI and the scene without sitting on the erg.
+
+Your strokes drive the boat: distance scrolls the world, speed shapes the camera, and
+the PM5's stroke state swings the oars in time with the handle.
 
 ## Requirements
 
@@ -37,17 +40,21 @@ when you switch back to the tab, so the display doesn't sleep mid-piece.
 
 ```
 src/rower/                            src/ui/
-  RowerSource.js    event-emitter base   dashboard.js   renders, knows nothing of BLE
+  RowerSource.js    event-emitter base   dashboard.js    HUD, knows nothing of BLE
   Pm5Connection.js  Web Bluetooth
   pm5Parser.js      pure DataView -> object functions (unit-tested)
-  pm5Uuids.js       UUIDs and enums
-  SimulatedRower.js fake but realistic samples
+  pm5Uuids.js       UUIDs and enums    src/scene/
+  SimulatedRower.js fake samples         RowingScene.js  orchestration, camera, loop
+                                         water.js        wave shader + CPU mirror
+                                         boat.js         hull, oars, rower
+                                         course.js       buoys and banks
+                                         sky.js          gradient dome and sun
 ```
 
 `Pm5Connection` and `SimulatedRower` both implement the same **`RowerSource`** interface —
-`start()`, `stop()`, `on('sample', fn)`, `on('state', fn)` — so the UI cannot tell them
-apart. That boundary is what lets v2 drop a three.js scene in beside the dashboard
-without touching any Bluetooth code.
+`start()`, `stop()`, `on('sample', fn)`, `on('state', fn)` — so nothing downstream can
+tell them apart. The scene subscribes to that same stream, which is why v2 landed
+without a line changing in the Bluetooth layer.
 
 Samples look like this:
 
@@ -65,6 +72,31 @@ Connection state events are `{ state, deviceName, message }` where `state` is
 
 The dashboard stores the latest sample and renders on `requestAnimationFrame`, so a
 burst of BLE notifications never causes a burst of re-renders.
+
+### The scene
+
+Three sample fields drive everything you see:
+
+| Field | Drives |
+| --- | --- |
+| `distanceM` | How far the world has scrolled — buoys and banks recycle against it |
+| `speedMps` | Camera pullback and a touch of extra field of view as you wind up |
+| `strokeState` | The oar sweep, the blades burying and lifting, and the hull's pitch |
+
+Nothing in the scene actually travels. The boat sits at the origin and the water, buoys
+and banks recycle underneath it modulo the course length, so vertex coordinates stay
+small no matter how far you row.
+
+Between the PM5's 4 Hz samples the scene integrates `speedMps` and then eases onto the
+distance the monitor actually reported, which keeps motion smooth without letting the
+world drift away from the real number. Stroke phase is a single 0→1 scalar: the drive
+takes 35% of the stroke cycle and the recovery 65%, timed from your actual rating, so
+the oars stay in sync with the handle rather than running on a fixed animation.
+
+The water's wave field lives in a vertex shader, and `water.js` mirrors the same maths
+on the CPU so the boat and buoys can ride the surface. If you change one, change both.
+
+`prefers-reduced-motion` flattens the waves and drops the camera's speed effects.
 
 ### PM5 protocol notes
 
@@ -124,7 +156,12 @@ Fullscreen API. Open the page in its own browser window.
 **Wake lock doesn't hold** — browsers drop the lock when the tab is hidden and some
 refuse it on low battery. The app re-requests it whenever the tab becomes visible again.
 
-## Not in v1
+**The build warns about chunk size** — that's three.js, about 550 kB raw and ~140 kB
+gzipped. Expected; not worth code-splitting for a single-page app.
 
-three.js lake/river scene (v2), scenery/audio/ghost boat (v3), saved sessions and
-heart-rate straps.
+**The scene is choppy** — it runs at 60fps on modest hardware, but if the GPU is
+struggling, the wave plane in `water.js` (`segments`) is the first thing to turn down.
+
+## Not yet
+
+Scenery, audio and a pace/ghost boat (v3); saved sessions, routes and heart-rate straps.

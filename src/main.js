@@ -1,8 +1,11 @@
 import { Dashboard } from './ui/dashboard.js';
 import { SimulatedRower } from './rower/SimulatedRower.js';
 import { Pm5Connection } from './rower/Pm5Connection.js';
+import { RowingScene } from './scene/RowingScene.js';
 
 const dashboard = new Dashboard();
+const scene = new RowingScene(document.getElementById('scene'));
+scene.start();
 
 let activeSource = null;
 
@@ -11,6 +14,7 @@ async function activate(createSource) {
   if (activeSource) await activeSource.stop();
   activeSource = createSource();
   dashboard.attach(activeSource);
+  activeSource.on('sample', (sample) => scene.applySample(sample));
   activeSource.start();
   dashboard.requestWakeLockForSession();
 }
@@ -23,6 +27,7 @@ function toggleDemo() {
   if (activeSource instanceof SimulatedRower) {
     activeSource.stop();
     activeSource = null;
+    scene.rest();
     return;
   }
   activate(() => new SimulatedRower());

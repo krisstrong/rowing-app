@@ -26,12 +26,30 @@ button {
   outline-offset: 2px;
 }
 
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The dashboard is a HUD floating over the scene: transparent to the mouse
+   except for the controls themselves. */
 .dashboard {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
   padding: 1.5rem clamp(1rem, 4vw, 3rem);
   gap: 1.25rem;
+  pointer-events: none;
+}
+
+.status-indicator,
+.controls,
+.message-banner {
+  pointer-events: auto;
 }
 
 /* ---------- Status bar ---------- */
@@ -51,8 +69,9 @@ button {
   font-size: 0.9rem;
   color: var(--ink-300);
   padding: 0.4rem 0.8rem;
-  background: var(--navy-800);
-  border: 1px solid var(--navy-600);
+  background: rgba(15, 30, 61, 0.65);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(34, 53, 92, 0.9);
   border-radius: 999px;
 }
 
@@ -138,7 +157,7 @@ button {
 /* ---------- Hero pace ---------- */
 
 .hero {
-  flex: 1.1;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -159,15 +178,17 @@ button {
 .hero-value {
   font-family: var(--font-mono);
   font-weight: 600;
-  font-size: clamp(5rem, 18vw, 13rem);
+  font-size: clamp(3.5rem, 11vw, 8rem);
   line-height: 1;
   color: var(--amber);
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 24px rgba(10, 20, 40, 0.85);
 }
 
 /* ---------- Stroke phase ---------- */
 
 .stroke-phase {
+  margin-top: auto; /* pushes the stroke bar and stats to the foot of the HUD */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,7 +238,7 @@ button {
 /* ---------- Stat grid ---------- */
 
 .stats-grid {
-  flex: 1;
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
@@ -227,8 +248,9 @@ button {
 }
 
 .stat-panel {
-  background: var(--navy-800);
-  border: 1px solid var(--navy-600);
+  background: rgba(15, 30, 61, 0.55);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(34, 53, 92, 0.9);
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
   display: flex;
