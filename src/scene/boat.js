@@ -86,7 +86,11 @@ export function createBoat() {
      * @param driving true while the blades should be buried
      */
     update(phase, driving) {
-      const sweep = THREE.MathUtils.lerp(CATCH_SWEEP, FINISH_SWEEP, phase);
+      // The blades move quickest right after the catch and settle into the
+      // finish, which is both how a real stroke looks and what stops the catch
+      // reading as late. Continuous with the linear recovery at phase 0 and 1.
+      const swing = driving ? 1 - (1 - phase) ** 2 : phase;
+      const sweep = THREE.MathUtils.lerp(CATCH_SWEEP, FINISH_SWEEP, swing);
       const lift = driving ? -0.03 : 0.13;
 
       for (const [index, oar] of oars.entries()) {

@@ -117,7 +117,9 @@ export class Pm5Connection extends RowerSource {
     this.#server = await this.#device.gatt.connect();
     const service = await this.#server.getPrimaryService(PM5_ROWING_SERVICE);
 
-    await this.#setSampleRate(service, SAMPLE_RATE.QUARTER_SEC);
+    // 100 ms, not the 250 ms default: stroke state is what swings the oars, and
+    // at 250 ms the catch lands up to a quarter second late.
+    await this.#setSampleRate(service, SAMPLE_RATE.TENTH_SEC);
 
     await this.#subscribe(service, CHAR_GENERAL_STATUS, (view) => {
       const status = parseGeneralStatus(view);

@@ -103,7 +103,12 @@ export class RowingScene {
   applySample(sample) {
     this.#targetDistance = sample.distanceM;
     this.#targetSpeed = sample.speedMps;
-    this.#driving = sample.strokeState === 'driving';
+
+    // A new drive means a new stroke, which by definition starts at the catch.
+    // Without this the oars carry over wherever the recovery ramp had got to.
+    const driving = sample.strokeState === 'driving';
+    if (driving && !this.#driving) this.#strokePhase = 0;
+    this.#driving = driving;
     if (sample.strokeRate > 0) this.#strokeRate = sample.strokeRate;
     this.#secondsSinceSample = 0;
   }
