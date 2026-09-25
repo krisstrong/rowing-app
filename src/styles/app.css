@@ -1,0 +1,291 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--navy-900);
+  color: var(--ink-100);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+button {
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 1.5rem clamp(1rem, 4vw, 3rem);
+  gap: 1.25rem;
+}
+
+/* ---------- Status bar ---------- */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--ink-300);
+  padding: 0.4rem 0.8rem;
+  background: var(--navy-800);
+  border: 1px solid var(--navy-600);
+  border-radius: 999px;
+}
+
+.status-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--ink-500);
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator[data-state='connected'] .status-dot {
+  background: #3ECF8E;
+  box-shadow: 0 0 8px #3ECF8E;
+}
+
+.status-indicator[data-state='connecting'] .status-dot,
+.status-indicator[data-state='reconnecting'] .status-dot {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.status-indicator[data-state='error'] .status-dot,
+.status-indicator[data-state='unsupported'] .status-dot {
+  background: #F2718C;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--navy-600);
+  background: var(--navy-800);
+  color: var(--ink-100);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover {
+  border-color: var(--ink-500);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: var(--navy-900);
+}
+
+.btn-primary:hover {
+  background: var(--amber-hi);
+  border-color: var(--amber-hi);
+}
+
+.btn-primary:active {
+  background: var(--amber-lo);
+  border-color: var(--amber-lo);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Hero pace ---------- */
+
+.hero {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.25rem;
+}
+
+.hero-label {
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-300);
+}
+
+.hero-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: clamp(5rem, 18vw, 13rem);
+  line-height: 1;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Stroke phase ---------- */
+
+.stroke-phase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--ink-300);
+}
+
+.stroke-phase-track {
+  position: relative;
+  width: min(420px, 70vw);
+  height: 0.6rem;
+  background: var(--navy-700);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.stroke-phase-fill {
+  position: absolute;
+  inset: 0;
+  width: 30%;
+  background: var(--amber);
+  border-radius: 999px;
+  transition: width 0.15s ease-out;
+}
+
+.stroke-phase-fill[data-phase='recovery'] {
+  background: #4F9DE0;
+}
+
+.stroke-phase-word {
+  min-width: 6ch;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.stroke-phase-word[data-phase='driving'] {
+  color: var(--amber);
+}
+
+.stroke-phase-word[data-phase='recovery'] {
+  color: #4F9DE0;
+}
+
+/* ---------- Stat grid ---------- */
+
+.stats-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.stat-panel {
+  background: var(--navy-800);
+  border: 1px solid var(--navy-600);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.stat-label {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: clamp(1.6rem, 3.2vw, 2.6rem);
+  font-weight: 500;
+  color: var(--ink-100);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value .unit {
+  font-size: 0.55em;
+  color: var(--ink-300);
+  margin-left: 0.2em;
+}
+
+@media (max-width: 760px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------- Message banner (unsupported / not-found help text) ---------- */
+
+.message-banner {
+  background: var(--navy-700);
+  border: 1px solid var(--navy-600);
+  border-left: 3px solid var(--amber);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--ink-300);
+  display: none;
+}
+
+.message-banner.visible {
+  display: block;
+}
+
+/* ---------- Fullscreen niceties ---------- */
+
+:fullscreen .dashboard,
+:-webkit-full-screen .dashboard {
+  padding: 2.5rem clamp(1.5rem, 5vw, 4rem);
+}

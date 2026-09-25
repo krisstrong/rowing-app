@@ -1,0 +1,130 @@
+# Rowing App — v1 "Connect & Display"
+
+A browser dashboard for a **Concept2 PM5** monitor. It connects over **Web Bluetooth**
+and shows live pace, stroke rate, distance, elapsed time and watts in numbers you can
+read from the rowing seat. A built-in simulator means you can work on the UI without
+sitting on the erg.
+
+## Requirements
+
+- **Chrome or Microsoft Edge** on Windows or macOS. Web Bluetooth does not exist in
+  Firefox or Safari — the app says so instead of failing silently.
+- Bluetooth LE on the machine (built-in or a USB dongle).
+- A secure context: `http://localhost` in development, HTTPS when hosted.
+
+## Run
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # Vitest unit tests for the PM5 parser
+npm run build      # static site in dist/
+npm run preview    # serve the built dist/ locally
+```
+
+## Using it
+
+| Control | What it does |
+| --- | --- |
+| **Connect rower** | Opens Chrome's device chooser, filtered to names starting with `PM5` |
+| **Demo mode** (`D`) | Runs the simulator — realistic fake data, no rower needed |
+| **Full screen** (`F`) | Fullscreen API; `Esc` exits |
+
+The app requests a **Screen Wake Lock** while a session is running, and re-acquires it
+when you switch back to the tab, so the display doesn't sleep mid-piece.
+
+## Architecture
+
+```
+src/rower/                            src/ui/
+  RowerSource.js    event-emitter base   dashboard.js   renders, knows nothing of BLE
+  Pm5Connection.js  Web Bluetooth
+  pm5Parser.js      pure DataView -> object functions (unit-tested)
+  pm5Uuids.js       UUIDs and enums
+  SimulatedRower.js fake but realistic samples
+```
+
+`Pm5Connection` and `SimulatedRower` both implement the same **`RowerSource`** interface —
+`start()`, `stop()`, `on('sample', fn)`, `on('state', fn)` — so the UI cannot tell them
+apart. That boundary is what lets v2 drop a three.js scene in beside the dashboard
+without touching any Bluetooth code.
+
+Samples look like this:
+
+```json
+{
+  "elapsedSec": 312.45, "distanceM": 1284.3, "paceSecPer500": 128.6,
+  "speedMps": 3.89, "strokeRate": 24, "powerW": 165, "heartRate": 0,
+  "strokeState": "driving", "strokeCount": 121, "dragFactor": 115,
+  "calories": 88, "source": "pm5"
+}
+```
+
+Connection state events are `{ state, deviceName, message }` where `state` is
+`idle | connecting | connected | reconnecting | error | unsupported`.
+
+The dashboard stores the latest sample and renders on `requestAnimationFrame`, so a
+burst of BLE notifications never causes a burst of re-renders.
+
+### PM5 protocol notes
+
+From Concept2's *PM5 Bluetooth Smart Communications Interface Definition*. Base UUID
+`CE06xxxx-43E5-11E4-916C-0800200C9A66`; rowing service `0x0030`. The app subscribes to
+four characteristics and merges them into one sample:
+
+| UUID | Carries |
+| --- | --- |
+| `0x0031` General status | elapsed time, distance, rowing/stroke state, drag factor |
+| `0x0032` Additional status 1 | speed, stroke rate, heart rate, current + average pace |
+| `0x0033` Additional status 2 | interval count, average power, calories, split data |
+| `0x0035` Stroke data | drive length/time, recovery time, forces, stroke count |
+
+It also writes `0x0034` to request 250 ms samples (the default is 500 ms), which matters
+for smooth animation in v2. Multi-byte values are little-endian; time is 0.01 s,
+distance 0.1 m, pace 0.01 s/500 m, speed 0.001 m/s, force 0.1 lbs.
+
+Two details worth knowing, both verified against the spec rather than assumed:
+
+- **Heart rate 255 means "no belt"**, not 255 bpm. `pm5Parser` normalises it to `0`.
+- **Stroke state** is `0 waitingForMinSpeed, 1 waitingToAccelerate, 2 driving,
+  3 dwellingAfterDrive, 4 recovery`. The dashboard shows drive vs everything-else; the
+  raw value is passed through on the sample for the future scene to use.
+
+## Hosting on GitHub Pages
+
+Web Bluetooth needs HTTPS, which Pages provides.
+
+1. `npm run build`
+2. Publish `dist/` — either push it to a `gh-pages` branch, or commit it and point
+   Pages at it in the repository's **Settings → Pages**.
+3. If the site is served from a subpath (`user.github.io/rowing-app/`), set
+   `base: '/rowing-app/'` in a `vite.config.js` before building, otherwise the asset
+   URLs will 404.
+
+## Troubleshooting
+
+**"Web Bluetooth is not available"** — you're in Firefox or Safari. Open it in Chrome or
+Edge. Demo mode still works everywhere.
+
+**The chooser is empty / "No PM5 found"** — the PM5 accepts **one app at a time**. Close
+ErgData or any phone app that's connected to it. Also check the monitor is awake (pull
+the handle) and that Bluetooth is on. On the PM5: *More Options → Drag Factor* etc. keeps
+it awake; the monitor sleeps after a few idle minutes.
+
+**It connects but nothing updates** — the PM5 only sends data while the flywheel is
+moving. Take a stroke. If it stays at zero, disconnect and reconnect.
+
+**"Lost the connection"** — turning the monitor off mid-session shows *Reconnecting…* and
+retries with backoff (0.5 s up to 8 s, seven attempts). Power the PM5 back on and it
+recovers on its own. After that it gives up and you press **Connect rower** again.
+
+**Full screen refused** — some embedded or policy-restricted contexts block the
+Fullscreen API. Open the page in its own browser window.
+
+**Wake lock doesn't hold** — browsers drop the lock when the tab is hidden and some
+refuse it on low battery. The app re-requests it whenever the tab becomes visible again.
+
+## Not in v1
+
+three.js lake/river scene (v2), scenery/audio/ghost boat (v3), saved sessions and
+heart-rate straps.

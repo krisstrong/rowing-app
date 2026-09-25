@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rowing App — Live Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/src/styles/app.css" />
+</head>
+<body>
+  <div class="dashboard">
+    <div class="status-bar">
+      <div class="status-indicator" id="status-indicator" data-state="idle">
+        <span class="status-dot"></span>
+        <span id="status-text">Not connected</span>
+      </div>
+      <div class="controls">
+        <button class="btn btn-primary" id="btn-connect" type="button">Connect rower</button>
+        <button class="btn" id="btn-demo" type="button">Demo mode</button>
+        <button class="btn" id="btn-fullscreen" type="button">Full screen</button>
+      </div>
+    </div>
+
+    <div class="message-banner" id="message-banner"></div>
+
+    <div class="hero">
+      <div class="hero-label">Pace / 500m</div>
+      <div class="hero-value" id="stat-pace">–:––.–</div>
+    </div>
+
+    <div class="stroke-phase">
+      <span class="stroke-phase-word" id="stroke-phase-word" data-phase="">—</span>
+      <div class="stroke-phase-track">
+        <div class="stroke-phase-fill" id="stroke-phase-fill" data-phase="driving"></div>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-panel">
+        <span class="stat-label">Stroke Rate</span>
+        <span class="stat-value" id="stat-rate">–<span class="unit">spm</span></span>
+      </div>
+      <div class="stat-panel">
+        <span class="stat-label">Distance</span>
+        <span class="stat-value" id="stat-distance">–<span class="unit">m</span></span>
+      </div>
+      <div class="stat-panel">
+        <span class="stat-label">Elapsed</span>
+        <span class="stat-value" id="stat-time">–:––</span>
+      </div>
+      <div class="stat-panel">
+        <span class="stat-label">Power</span>
+        <span class="stat-value" id="stat-power">–<span class="unit">W</span></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
