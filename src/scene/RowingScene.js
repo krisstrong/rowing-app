@@ -54,6 +54,7 @@ export class RowingScene {
   #wake;
   #reflectionCamera;
   #reflectionTarget;
+  #textureMatrix = new THREE.Matrix4();
   #paceBoat = { enabled: false, gapM: 0 };
   #renderedGap = 0;
   #clock = new THREE.Clock();
@@ -316,13 +317,29 @@ export class RowingScene {
     const camera = this.#camera;
     const reflection = this.#reflectionCamera;
 
-    // The camera has no roll and the water sits at y=0, so mirroring is just a
-    // sign flip on height — both for the eye and for what it looks at.
+    // Mirroring the eye and the look-at point is not enough: the up vector has
+    // to be mirrored too. Leave it as +Y and lookAt builds a basis rotated
+    // about the view axis, which slides every reflection away from the thing
+    // casting it.
     reflection.position.set(camera.position.x, -camera.position.y, camera.position.z);
+    reflection.up.set(0, -1, 0);
     reflection.lookAt(0, -LOOK_AT_HEIGHT, LOOK_AT_Z);
     reflection.fov = camera.fov;
     reflection.aspect = camera.aspect;
     reflection.updateProjectionMatrix();
+    reflection.updateMatrixWorld(true);
+
+    // Projective texture mapping, so the water samples the mirrored render by
+    // world position rather than assuming the two views share screen space.
+    this.#textureMatrix.set(
+      0.5, 0, 0, 0.5,
+      0, 0.5, 0, 0.5,
+      0, 0, 0.5, 0.5,
+      0, 0, 0, 1,
+    );
+    this.#textureMatrix.multiply(reflection.projectionMatrix);
+    this.#textureMatrix.multiply(reflection.matrixWorldInverse);
+    this.#water.setReflectionMatrix(this.#textureMatrix);
 
     // Anything below the waterline would show through the surface, so clip it.
     this.#renderer.clippingPlanes = REFLECTION_CLIP;
@@ -345,8 +362,6 @@ export class RowingScene {
     const targetWidth = Math.max(2, Math.floor((width * pixelRatio) / 3));
     const targetHeight = Math.max(2, Math.floor((height * pixelRatio) / 3));
     this.#reflectionTarget.setSize(targetWidth, targetHeight);
-    // The shader divides gl_FragCoord by this, so it must be the size of the
-    // main drawing buffer, not the half-size target.
-    this.#water.setReflection(this.#reflectionTarget.texture, width * pixelRatio, height * pixelRatio);
+    this.#water.setReflection(this.#reflectionTarget.texture);
   }
 }

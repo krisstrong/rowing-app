@@ -127,9 +127,18 @@ and boulders are instanced — about a dozen draw calls for the whole forest.
 What makes it read as real water:
 
 - **Planar reflections.** The scene renders a second time from a camera mirrored
-  through the waterline, into a half-resolution target the water shader samples. The
-  wave normal ripples the lookup, which is the difference between water and a mirror.
-  Everything below the waterline is clipped out of that pass so it can't show through.
+  through the waterline, into a reduced-resolution target the water samples by
+  *projective texture mapping* — bias × projection × view of the mirrored camera,
+  applied to the world position. The wave normal ripples that lookup, which is the
+  difference between water and a mirror. Everything below the waterline is clipped out
+  of the pass so it can't show through.
+
+  Two traps here, both of which produced reflections detached from the things casting
+  them. The mirrored camera needs its **up vector mirrored too** (`up = (0,-1,0)` before
+  `lookAt`); mirroring only the eye and target leaves the basis rotated about the view
+  axis. And you cannot shortcut the lookup with `gl_FragCoord` screen position — the two
+  cameras don't share a screen space, so the reflection slides away from its source. The
+  visible symptom was the boat appearing in the water far up the river ahead of itself.
 - **Puddles.** At the finish of every drive the blades leave a pair of swirls at their
   reach, and those stay put in the water while the boat pulls away from them. This is
   the detail that says *rowing* rather than *boat with an engine*.
