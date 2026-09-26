@@ -1,3 +1,5 @@
+import { LADDER_STEPS, STEP_SECONDS } from '../rateLadder.js';
+
 /**
  * Renders the live dashboard from whatever RowerSource is currently active.
  * Knows nothing about Bluetooth — it only calls start()/stop() and listens
@@ -219,8 +221,13 @@ export class Dashboard {
       return;
     }
 
-    this.#els.ladderStep.textContent = `Step ${state.stepNumber} / ${state.stepCount}`;
-    this.#els.ladderTarget.textContent = `Hold ${state.targetRate} spm · ${state.powerFloorW}W+`;
+    const warmup = state.phase === 'warmup';
+    this.#els.ladderStep.textContent = warmup
+      ? `Warm-up ${state.stepNumber} / ${state.stepCount}`
+      : `Step ${state.stepNumber} / ${state.stepCount}`;
+    this.#els.ladderTarget.textContent = warmup
+      ? `Ease into ${state.targetRate} spm`
+      : `Hold ${state.targetRate} spm · ${state.powerFloorW}W+`;
     this.#els.ladderCountdown.textContent = formatElapsed(state.stepRemainingSec);
 
     const zoneState = state.inZone ? 'in' : state.reason === 'powerLow' ? 'soft' : 'out';
@@ -233,12 +240,15 @@ export class Dashboard {
 
     this.#els.ladderHint.dataset.state = zoneState;
     this.#els.ladderHint.textContent = {
-      in: 'In the zone',
+      in: warmup ? 'Warming up' : 'In the zone',
       soft: 'Press harder',
       rateLow: 'Rate up',
       rateHigh: 'Ease the rate',
     }[state.inZone ? 'in' : state.reason === 'powerLow' ? 'soft' : state.reason];
-    this.#els.ladderScore.textContent = `${state.zonePercent}% in zone`;
+    // The warm-up is unscored, so showing 0% there would read as failure.
+    this.#els.ladderScore.textContent = warmup
+      ? `Ladder in ${formatElapsed(state.totalRemainingSec - LADDER_DURATION_SEC)}`
+      : `${state.zonePercent}% in zone`;
   }
 
   async toggleFullscreen() {
@@ -279,12 +289,15 @@ export class Dashboard {
   }
 }
 
+/** How long the scored pyramid runs, so the warm-up can count down to it. */
+const LADDER_DURATION_SEC = LADDER_STEPS.length * STEP_SECONDS;
+
 /**
- * The gauge spans 18–36 spm: wide enough to show the 24–32 ladder with its
- * bands and a little air either side, without wasting half the bar on ratings
- * the ladder never asks for. Everything on it is positioned through here.
+ * The gauge spans 14–36 spm: the warm-up's lowest band starts at 16, the
+ * ladder's highest ends at 34, and this leaves air either side without wasting
+ * the bar on ratings nothing ever asks for. Positioned through here.
  */
-const GAUGE_MIN_SPM = 18;
+const GAUGE_MIN_SPM = 14;
 const GAUGE_MAX_SPM = 36;
 
 function gaugePosition(rate) {

@@ -1,22 +1,23 @@
 /**
  * Rate ladder: a pyramid of stroke-rate targets you have to hold, one step at
- * a time. The handle is the only input you have while rowing, and rating is
- * the thing you can change instantly — pace lags several strokes behind — so
- * it is the only honest thing to build a game on.
+ * a time, after a short warm-up. The handle is the only input you have while
+ * rowing, and rating is the thing you can change instantly — pace lags several
+ * strokes behind — so it is the only honest thing to build a game on.
  *
  * You are "in the zone" only when the rating is inside the band AND the power
  * is above a floor that scales with the target. Rate alone is trivially gamed:
- * you can sit at 28 with no pressure on the handle and do less work than a
- * committed 20.
+ * you can sit at 32 with no pressure on the handle and do less work than a
+ * committed 24.
  *
  * Pure logic, no DOM and no rendering, so the scoring can be tested without an
  * erg attached.
  */
 
-/**
- * Up and back down, 24 at the ends and 32 at the peak. Rowing the rate back
- * down while tired is the hard half.
- */
+/** Builds in, unscored, so the ladder proper starts on a body that is ready. */
+export const WARMUP_STEPS = [18, 20, 22];
+export const WARMUP_STEP_SECONDS = 60;
+
+/** Up and back down. Rowing the rate back down while tired is the hard half. */
 export const LADDER_STEPS = [24, 26, 28, 30, 32, 30, 28, 26, 24];
 export const STEP_SECONDS = 90;
 
@@ -30,11 +31,42 @@ const MAX_WATTS_PER_SPM = 12;
 /** Ignore absurd gaps between samples (a pause, or the monitor resetting). */
 const MAX_SAMPLE_GAP_SEC = 1;
 
+export const PHASE = { WARMUP: 'warmup', LADDER: 'ladder' };
+
 export const OUT_OF_ZONE = {
   RATE_LOW: 'rateLow',
   RATE_HIGH: 'rateHigh',
   POWER_LOW: 'powerLow',
 };
+
+/** Warm-up first, then the scored pyramid, as one flat sequence of steps. */
+const SEQUENCE = [
+  ...WARMUP_STEPS.map((targetRate) => ({
+    targetRate,
+    seconds: WARMUP_STEP_SECONDS,
+    phase: PHASE.WARMUP,
+    scored: false,
+  })),
+  ...LADDER_STEPS.map((targetRate) => ({
+    targetRate,
+    seconds: STEP_SECONDS,
+    phase: PHASE.LADDER,
+    scored: true,
+  })),
+];
+
+/** Cumulative end time of each step, so steps of different lengths work. */
+const STEP_ENDS = SEQUENCE.reduce((ends, step, index) => {
+  ends.push((ends[index - 1] ?? 0) + step.seconds);
+  return ends;
+}, []);
+
+const TOTAL_SECONDS = STEP_ENDS.at(-1);
+
+function stepIndexAt(elapsedSec) {
+  const index = STEP_ENDS.findIndex((end) => elapsedSec < end);
+  return index === -1 ? SEQUENCE.length : index;
+}
 
 export class RateLadder {
   #running = false;
@@ -42,6 +74,7 @@ export class RateLadder {
   #wattsPerSpm = DEFAULT_WATTS_PER_SPM;
 
   #elapsedInGameSec = 0;
+  #scoredElapsedSec = 0;
   #timeInZoneSec = 0;
   #lastSampleElapsedSec = null;
   #stepZoneSec = 0;
@@ -63,6 +96,7 @@ export class RateLadder {
     this.#running = true;
     this.#finished = false;
     this.#elapsedInGameSec = 0;
+    this.#scoredElapsedSec = 0;
     this.#timeInZoneSec = 0;
     this.#stepZoneSec = 0;
     this.#stepIndex = 0;
@@ -101,50 +135,71 @@ export class RateLadder {
     if (delta <= 0 || delta > MAX_SAMPLE_GAP_SEC) return;
 
     this.#elapsedInGameSec += delta;
-    if (this.#evaluate().inZone) {
-      this.#timeInZoneSec += delta;
-      this.#stepZoneSec += delta;
+
+    // Only the ladder proper counts. Scoring the warm-up would inflate the
+    // percentage with time spent deliberately taking it easy.
+    if (SEQUENCE[this.#stepIndex]?.scored) {
+      this.#scoredElapsedSec += delta;
+      if (this.#evaluate().inZone) {
+        this.#timeInZoneSec += delta;
+        this.#stepZoneSec += delta;
+      }
     }
 
     this.#advanceStepIfDue();
   }
 
   #advanceStepIfDue() {
-    const stepsDone = Math.floor(this.#elapsedInGameSec / STEP_SECONDS);
-    while (this.#stepIndex < stepsDone && this.#stepIndex < LADDER_STEPS.length) {
-      this.#results.push({
-        targetRate: LADDER_STEPS[this.#stepIndex],
-        zoneSec: Math.round(this.#stepZoneSec * 10) / 10,
-        zonePercent: Math.round((this.#stepZoneSec / STEP_SECONDS) * 100),
-      });
+    const target = stepIndexAt(this.#elapsedInGameSec);
+    while (this.#stepIndex < target && this.#stepIndex < SEQUENCE.length) {
+      const step = SEQUENCE[this.#stepIndex];
+      if (step.scored) {
+        this.#results.push({
+          targetRate: step.targetRate,
+          zoneSec: Math.round(this.#stepZoneSec * 10) / 10,
+          zonePercent: Math.round((this.#stepZoneSec / step.seconds) * 100),
+        });
+      }
       this.#stepZoneSec = 0;
       this.#stepIndex += 1;
     }
 
-    if (this.#stepIndex >= LADDER_STEPS.length) {
+    if (this.#stepIndex >= SEQUENCE.length) {
       this.#running = false;
       this.#finished = true;
     }
   }
 
   #evaluate() {
-    const targetRate = LADDER_STEPS[Math.min(this.#stepIndex, LADDER_STEPS.length - 1)];
-    const bandLow = targetRate - BAND_SPM;
-    const bandHigh = targetRate + BAND_SPM;
-    const powerFloorW = Math.round(targetRate * this.#wattsPerSpm);
+    const step = SEQUENCE[Math.min(this.#stepIndex, SEQUENCE.length - 1)];
+    const bandLow = step.targetRate - BAND_SPM;
+    const bandHigh = step.targetRate + BAND_SPM;
+    // No floor while warming up — the point is to get loose, not to work.
+    const powerFloorW = step.scored ? Math.round(step.targetRate * this.#wattsPerSpm) : 0;
 
     let reason = null;
     if (this.#rate < bandLow) reason = OUT_OF_ZONE.RATE_LOW;
     else if (this.#rate > bandHigh) reason = OUT_OF_ZONE.RATE_HIGH;
     else if (this.#power < powerFloorW) reason = OUT_OF_ZONE.POWER_LOW;
 
-    return { targetRate, bandLow, bandHigh, powerFloorW, inZone: reason === null, reason };
+    return {
+      targetRate: step.targetRate,
+      phase: step.phase,
+      scored: step.scored,
+      bandLow,
+      bandHigh,
+      powerFloorW,
+      inZone: reason === null,
+      reason,
+    };
   }
 
   get state() {
     const evaluated = this.#evaluate();
-    const stepElapsed = this.#elapsedInGameSec - this.#stepIndex * STEP_SECONDS;
-    const totalSec = LADDER_STEPS.length * STEP_SECONDS;
+    const index = Math.min(this.#stepIndex, SEQUENCE.length - 1);
+    const stepStart = index === 0 ? 0 : STEP_ENDS[index - 1];
+    const stepsInPhase = SEQUENCE.filter((step) => step.phase === evaluated.phase);
+    const firstOfPhase = SEQUENCE.findIndex((step) => step.phase === evaluated.phase);
 
     return {
       running: this.#running,
@@ -153,13 +208,13 @@ export class RateLadder {
       rate: this.#rate,
       powerW: this.#power,
       wattsPerSpm: this.#wattsPerSpm,
-      stepNumber: Math.min(this.#stepIndex + 1, LADDER_STEPS.length),
-      stepCount: LADDER_STEPS.length,
-      stepRemainingSec: Math.max(0, STEP_SECONDS - stepElapsed),
-      totalRemainingSec: Math.max(0, totalSec - this.#elapsedInGameSec),
+      stepNumber: index - firstOfPhase + 1,
+      stepCount: stepsInPhase.length,
+      stepRemainingSec: Math.max(0, STEP_ENDS[index] - this.#elapsedInGameSec),
+      totalRemainingSec: Math.max(0, TOTAL_SECONDS - this.#elapsedInGameSec),
       timeInZoneSec: this.#timeInZoneSec,
-      zonePercent: this.#elapsedInGameSec > 0
-        ? Math.round((this.#timeInZoneSec / this.#elapsedInGameSec) * 100)
+      zonePercent: this.#scoredElapsedSec > 0
+        ? Math.round((this.#timeInZoneSec / this.#scoredElapsedSec) * 100)
         : 0,
       results: this.#results,
     };

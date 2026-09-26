@@ -250,11 +250,11 @@ button {
   background: var(--navy-900);
   border: 1px solid var(--navy-600);
   overflow: hidden;
-  /* A tick every 2 spm across the 18–36 scale. */
+  /* A tick every 2 spm across the 14–36 scale. */
   background-image: repeating-linear-gradient(
     to right,
     rgba(159, 173, 201, 0.18) 0 1px,
-    transparent 1px calc(100% / 9)
+    transparent 1px calc(100% / 11)
   );
 }
 

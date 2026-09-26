@@ -166,9 +166,13 @@ between those and keeping the sun near the edge of frame where you can see it.
 
 ### Rate ladder (game mode)
 
-`src/rateLadder.js`. A pyramid of stroke-rate targets — 24-26-28-30-32 and back down,
-90 seconds a step — with a gauge showing the band and where your rating currently sits.
-Nothing below 24, so it is a working piece throughout rather than a warm-up that builds.
+`src/rateLadder.js`. A three-minute warm-up (18, 20, 22 for a minute each), then a
+pyramid of stroke-rate targets — 24-26-28-30-32 and back down, 90 seconds a step — with
+a gauge showing the band and where your rating currently sits. About 16 minutes in all.
+
+The warm-up is **unscored and asks for no power**: its job is to get you loose and
+rehearse hitting a rating. Counting it would inflate the percentage with time you spent
+deliberately taking it easy.
 
 Three design constraints shaped it:
 
@@ -191,9 +195,9 @@ its elapsed time can't be used to bank a score.
 The pyramid comes back down on purpose: holding a *lower* rate when you are already
 tired is the genuinely hard half, and it means the piece ends rowing rather than blown.
 
-The gauge spans 18–36spm — wide enough for the whole ladder plus its bands with a little
-air either side. Change `LADDER_STEPS` and the gauge range together, or the bands end up
-crammed against an edge.
+The gauge spans 14–36spm — the warm-up's lowest band starts at 16 and the ladder's
+highest ends at 34. Change the step targets and the gauge range together, or the bands
+end up clipped against an edge.
 
 ### Sound
 
