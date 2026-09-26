@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WILDLIFE_BUILDERS } from './wildlife.js';
 
 /**
@@ -84,20 +85,30 @@ function instanced(geometry, material, transforms) {
   return mesh;
 }
 
+/** Stacked, slightly offset cones — a real conifer is tiered, not one spike. */
+function tieredConifer(tiers) {
+  const parts = tiers.map(({ radius, height, y, lean = 0 }) => {
+    const cone = new THREE.ConeGeometry(radius, height, 7);
+    cone.translate(lean, y + height / 2, 0);
+    return cone;
+  });
+  return mergeGeometries(parts);
+}
+
 const geometries = {
   trunk: new THREE.CylinderGeometry(0.16, 0.24, 4, 5),
-  // Hemlock and spruce: narrow spires. Stacked cones read better than one.
-  conifer: (() => {
-    const geometry = new THREE.ConeGeometry(1.5, 7, 7);
-    geometry.translate(0, 3.5, 0);
-    return geometry;
-  })(),
-  // White pine: broader, more irregular crown.
-  pine: (() => {
-    const geometry = new THREE.ConeGeometry(2.2, 5.5, 6);
-    geometry.translate(0, 3.2, 0);
-    return geometry;
-  })(),
+  // Eastern hemlock and red spruce: narrow, tiered spires.
+  conifer: tieredConifer([
+    { radius: 1.6, height: 3.4, y: 0.6 },
+    { radius: 1.25, height: 3, y: 3.1, lean: 0.08 },
+    { radius: 0.8, height: 2.6, y: 5.2, lean: -0.05 },
+  ]),
+  // White pine: broader, heavier in the lower crown.
+  pine: tieredConifer([
+    { radius: 2.3, height: 3, y: 0.4 },
+    { radius: 1.7, height: 2.8, y: 2.6, lean: -0.1 },
+    { radius: 1.05, height: 2.2, y: 4.6, lean: 0.07 },
+  ]),
   canopy: (() => {
     const geometry = new THREE.SphereGeometry(1.8, 8, 6);
     geometry.translate(0, 4.4, 0);

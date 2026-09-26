@@ -123,6 +123,21 @@ The river is built as three tiles that recycle against distance rowed, each with
 different content, so the landscape repeats every 1050 m rather than every 350. Trees
 and boulders are instanced — about a dozen draw calls for the whole forest.
 
+What makes it read as real water:
+
+- **Planar reflections.** The scene renders a second time from a camera mirrored
+  through the waterline, into a half-resolution target the water shader samples. The
+  wave normal ripples the lookup, which is the difference between water and a mirror.
+  Everything below the waterline is clipped out of that pass so it can't show through.
+- **Puddles.** At the finish of every drive the blades leave a pair of swirls at their
+  reach, and those stay put in the water while the boat pulls away from them. This is
+  the detail that says *rowing* rather than *boat with an engine*.
+- **Wake and dawn mist**, both deliberately faint. The stern is only a few metres from
+  the camera, so a strong wake reads as a grey road; mist you are inside of reads as
+  fog, so each band fades out as it comes at you.
+
+The reflection pass doubles the draw calls and still holds 60fps.
+
 ### The pace boat
 
 `src/paceBoat.js` holds a boat that rows a constant target pace. It is deliberately

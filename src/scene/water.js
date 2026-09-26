@@ -51,6 +51,9 @@ const fragmentShader = /* glsl */ `
   uniform vec3 uFogColor;
   uniform float uFogNear;
   uniform float uFogFar;
+  uniform sampler2D uReflection;
+  uniform vec2 uResolution;
+  uniform float uReflectionAmount;
 
   varying vec3 vWorldPos;
   varying vec3 vNormal;
@@ -59,10 +62,18 @@ const fragmentShader = /* glsl */ `
     vec3 normal = normalize(vNormal);
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
-    // Grazing angles reflect the sky, steep angles show the dark water.
     // A tight reflection lobe: sky only at grazing angles, tea everywhere else.
     float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 3.6);
-    vec3 color = mix(uDeepColor, uSurfaceColor, fresnel);
+
+    // The mirrored pass shares this camera's projection, so for a plane at y=0
+    // the screen coordinate maps straight across. Rippling the lookup by the
+    // wave normal is what makes a reflection read as water rather than a mirror.
+    vec2 screenUv = gl_FragCoord.xy / uResolution;
+    vec2 ripple = normal.xz * 0.06;
+    vec3 reflected = texture2D(uReflection, clamp(screenUv + ripple, 0.002, 0.998)).rgb;
+
+    vec3 surface = mix(uSurfaceColor, reflected, uReflectionAmount);
+    vec3 color = mix(uDeepColor, surface, fresnel);
 
     // Sun glint: a tight specular lobe plus a broad sheen down the sun's path.
     vec3 sunDir = normalize(uSunDirection);
@@ -98,6 +109,9 @@ export function createWater({ size = 700, segments = 220, fogColor, fogNear, fog
       uFogColor: { value: fogColor.clone() },
       uFogNear: { value: fogNear },
       uFogFar: { value: fogFar },
+      uReflection: { value: null },
+      uResolution: { value: new THREE.Vector2(1, 1) },
+      uReflectionAmount: { value: 0 },
     },
   });
 
@@ -112,6 +126,11 @@ export function createWater({ size = 700, segments = 220, fogColor, fogNear, fog
     },
     setWaveAmplitude(amp) {
       material.uniforms.uWaveAmp.value = amp;
+    },
+    setReflection(texture, width, height) {
+      material.uniforms.uReflection.value = texture;
+      material.uniforms.uResolution.value.set(width, height);
+      material.uniforms.uReflectionAmount.value = texture ? 1 : 0;
     },
     /** Mirrors the shader's wave field on the CPU so the boat can ride the surface. */
     heightAt(x, z, elapsedSec, scrollM) {

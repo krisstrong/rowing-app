@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createWater } from './water.js';
 import { createBoat } from './boat.js';
 import { createRiver } from './river.js';
+import { createMist } from './mist.js';
+import { createWake } from './wake.js';
 import { createSky } from './sky.js';
 
 const FOG_COLOR = new THREE.Color('#1e2c4e');
@@ -18,6 +20,13 @@ const GHOST_STROKE_RATE = 24;
 /** Past this gap it is lost in the fog either way, so stop drawing it. */
 const GHOST_MAX_GAP_M = 400;
 
+/** Where the chase camera aims; the reflection pass mirrors this. */
+const LOOK_AT_HEIGHT = 0.6;
+const LOOK_AT_Z = -4;
+
+/** Keeps anything under the waterline out of the reflection. */
+const REFLECTION_CLIP = [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)];
+
 /**
  * The Mersey River through Kejimkujik at dawn. It consumes the same
  * RowingSample stream as the dashboard — distanceM drives the world scroll,
@@ -32,6 +41,10 @@ export class RowingScene {
   #boat;
   #ghost;
   #river;
+  #mist;
+  #wake;
+  #reflectionCamera;
+  #reflectionTarget;
   #paceBoat = { enabled: false, gapM: 0 };
   #renderedGap = 0;
   #clock = new THREE.Clock();
@@ -44,6 +57,7 @@ export class RowingScene {
   #strokeRate = 22;
   #strokePhase = 0;
   #pitch = 0;
+  #strokeFinished = false;
   #secondsSinceSample = 0;
   #running = false;
   #reducedMotion = false;
@@ -61,6 +75,12 @@ export class RowingScene {
 
     this.#camera = new THREE.PerspectiveCamera(55, 1, 0.1, 1400);
     this.#camera.position.set(0, 3.4, 11);
+
+    this.#reflectionCamera = new THREE.PerspectiveCamera(55, 1, 0.1, 1400);
+    this.#reflectionTarget = new THREE.WebGLRenderTarget(2, 2, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+    });
 
     this.#scene.add(createSky({ sunDirection: SUN_DIRECTION, horizonColor: FOG_COLOR }));
 
@@ -94,6 +114,12 @@ export class RowingScene {
     this.#river = createRiver();
     this.#scene.add(this.#river.group);
 
+    this.#mist = createMist();
+    this.#scene.add(this.#mist.group);
+
+    this.#wake = createWake();
+    this.#scene.add(this.#wake.group);
+
     this.#resize();
     window.addEventListener('resize', () => this.#resize());
   }
@@ -123,6 +149,7 @@ export class RowingScene {
     // Without this the oars carry over wherever the recovery ramp had got to.
     const driving = sample.strokeState === 'driving';
     if (driving && !this.#driving) this.#strokePhase = 0;
+    if (!driving && this.#driving) this.#strokeFinished = true;
     this.#driving = driving;
     if (sample.strokeRate > 0) this.#strokeRate = sample.strokeRate;
     this.#secondsSinceSample = 0;
@@ -159,11 +186,15 @@ export class RowingScene {
 
     this.#water.update(elapsed, this.#distance);
     this.#river.update(this.#distance, elapsed, waterHeightAt);
+    this.#mist.update(this.#distance, elapsed);
     this.#boat.update(this.#strokePhase, this.#driving);
+    this.#wake.update(delta, this.#speed, this.#strokeFinished, waterHeightAt);
+    this.#strokeFinished = false;
     this.#placeBoat(waterHeightAt);
     this.#placeGhost(waterHeightAt, elapsed, delta);
     this.#placeCamera(waterHeightAt);
 
+    this.#renderReflection();
     this.#renderer.render(this.#scene, this.#camera);
   }
 
@@ -232,7 +263,7 @@ export class RowingScene {
 
     this.#camera.position.z += (targetZ - this.#camera.position.z) * 0.05;
     this.#camera.position.y += (targetY - this.#camera.position.y) * 0.05;
-    this.#camera.lookAt(0, 0.6, -4);
+    this.#camera.lookAt(0, LOOK_AT_HEIGHT, LOOK_AT_Z);
 
     const targetFov = 55 + (this.#reducedMotion ? 0 : this.#speed * 1.1);
     if (Math.abs(this.#camera.fov - targetFov) > 0.01) {
@@ -241,11 +272,46 @@ export class RowingScene {
     }
   }
 
+  /**
+   * Renders the world mirrored in the water plane into a texture the water
+   * shader samples. Half resolution: it is about to be rippled and tinted, so
+   * the detail would be wasted.
+   */
+  #renderReflection() {
+    const camera = this.#camera;
+    const reflection = this.#reflectionCamera;
+
+    // The camera has no roll and the water sits at y=0, so mirroring is just a
+    // sign flip on height — both for the eye and for what it looks at.
+    reflection.position.set(camera.position.x, -camera.position.y, camera.position.z);
+    reflection.lookAt(0, -LOOK_AT_HEIGHT, LOOK_AT_Z);
+    reflection.fov = camera.fov;
+    reflection.aspect = camera.aspect;
+    reflection.updateProjectionMatrix();
+
+    // Anything below the waterline would show through the surface, so clip it.
+    this.#renderer.clippingPlanes = REFLECTION_CLIP;
+    this.#water.mesh.visible = false;
+    this.#renderer.setRenderTarget(this.#reflectionTarget);
+    this.#renderer.render(this.#scene, reflection);
+    this.#renderer.setRenderTarget(null);
+    this.#water.mesh.visible = true;
+    this.#renderer.clippingPlanes = [];
+  }
+
   #resize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
     this.#renderer.setSize(width, height, false);
     this.#camera.aspect = width / height;
     this.#camera.updateProjectionMatrix();
+
+    const pixelRatio = this.#renderer.getPixelRatio();
+    const targetWidth = Math.max(2, Math.floor((width * pixelRatio) / 2));
+    const targetHeight = Math.max(2, Math.floor((height * pixelRatio) / 2));
+    this.#reflectionTarget.setSize(targetWidth, targetHeight);
+    // The shader divides gl_FragCoord by this, so it must be the size of the
+    // main drawing buffer, not the half-size target.
+    this.#water.setReflection(this.#reflectionTarget.texture, width * pixelRatio, height * pixelRatio);
   }
 }
