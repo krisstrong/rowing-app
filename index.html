@@ -10,8 +10,8 @@
     href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap"
     rel="stylesheet"
   />
-  <script type="module" crossorigin src="/rowing-app/assets/index-D6wtnzHV.js"></script>
-  <link rel="stylesheet" crossorigin href="/rowing-app/assets/index-D8EjELOh.css">
+  <script type="module" crossorigin src="/rowing-app/assets/index-25UGgVHj.js"></script>
+  <link rel="stylesheet" crossorigin href="/rowing-app/assets/index-DlhlbwhS.css">
 </head>
 <body>
   <canvas id="scene"></canvas>
@@ -25,6 +25,7 @@
       <div class="controls">
         <button class="btn btn-primary" id="btn-connect" type="button">Connect rower</button>
         <button class="btn" id="btn-demo" type="button">Demo mode</button>
+        <button class="btn" id="btn-pace-boat" type="button" aria-pressed="false">Pace boat</button>
         <button class="btn" id="btn-fullscreen" type="button">Full screen</button>
       </div>
     </div>
@@ -34,6 +35,12 @@
     <div class="hero">
       <div class="hero-label">Pace / 500m</div>
       <div class="hero-value" id="stat-pace">–:––.–</div>
+    </div>
+
+    <div class="pace-boat" id="pace-boat" hidden>
+      <span class="pace-boat-label">Pace boat</span>
+      <span class="pace-boat-target" id="pace-boat-target">2:00.0</span>
+      <span class="pace-boat-gap" id="pace-boat-gap" data-side="even">even</span>
     </div>
 
     <div class="stroke-phase">
