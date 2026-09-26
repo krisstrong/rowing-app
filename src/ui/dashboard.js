@@ -212,19 +212,19 @@ export class Dashboard {
     if (!visible) return;
 
     if (state.finished) {
-      this.#els.ladderStep.textContent = `${state.stepCount} / ${state.stepCount}`;
+      this.#els.ladderStep.textContent = `${state.stepCount}/${state.stepCount}`;
       this.#els.ladderTarget.textContent = 'Ladder complete';
       this.#els.ladderCountdown.textContent = '0:00';
       this.#els.ladderHint.dataset.state = 'done';
       this.#els.ladderHint.textContent = 'Done';
-      this.#els.ladderScore.textContent = `${state.zonePercent}% in zone`;
+      this.#els.ladderScore.textContent = `${state.zonePercent}%`;
       return;
     }
 
     const warmup = state.phase === 'warmup';
     this.#els.ladderStep.textContent = warmup
-      ? `Warm-up ${state.stepNumber} / ${state.stepCount}`
-      : `Step ${state.stepNumber} / ${state.stepCount}`;
+      ? `W${state.stepNumber}/${state.stepCount}`
+      : `${state.stepNumber}/${state.stepCount}`;
     this.#els.ladderTarget.textContent = warmup
       ? `Ease into ${state.targetRate} spm`
       : `Hold ${state.targetRate} spm · ${state.powerFloorW}W+`;
@@ -247,8 +247,8 @@ export class Dashboard {
     }[state.inZone ? 'in' : state.reason === 'powerLow' ? 'soft' : state.reason];
     // The warm-up is unscored, so showing 0% there would read as failure.
     this.#els.ladderScore.textContent = warmup
-      ? `Ladder in ${formatElapsed(state.totalRemainingSec - LADDER_DURATION_SEC)}`
-      : `${state.zonePercent}% in zone`;
+      ? `→ ${formatElapsed(state.totalRemainingSec - LADDER_DURATION_SEC)}`
+      : `${state.zonePercent}%`;
   }
 
   async toggleFullscreen() {
