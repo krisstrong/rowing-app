@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createWater } from './water.js';
 import { createBoat } from './boat.js';
-import { createCourse } from './course.js';
+import { createRiver } from './river.js';
 import { createSky } from './sky.js';
 
 const FOG_COLOR = new THREE.Color('#1e2c4e');
@@ -19,9 +19,10 @@ const GHOST_STROKE_RATE = 24;
 const GHOST_MAX_GAP_M = 400;
 
 /**
- * The v2 lake scene. It consumes the same RowingSample stream as the
- * dashboard — distanceM drives the world scroll, speedMps the camera feel,
- * and strokeState the oars — and knows nothing about where samples come from.
+ * The Mersey River through Kejimkujik at dawn. It consumes the same
+ * RowingSample stream as the dashboard — distanceM drives the world scroll,
+ * speedMps the camera feel, and strokeState the oars — and knows nothing about
+ * where samples come from.
  */
 export class RowingScene {
   #renderer;
@@ -30,7 +31,7 @@ export class RowingScene {
   #water;
   #boat;
   #ghost;
-  #course;
+  #river;
   #paceBoat = { enabled: false, gapM: 0 };
   #renderedGap = 0;
   #clock = new THREE.Clock();
@@ -90,8 +91,8 @@ export class RowingScene {
     this.#ghost.group.position.x = GHOST_LANE_OFFSET_M;
     this.#scene.add(this.#ghost.group);
 
-    this.#course = createCourse();
-    this.#scene.add(this.#course.group);
+    this.#river = createRiver();
+    this.#scene.add(this.#river.group);
 
     this.#resize();
     window.addEventListener('resize', () => this.#resize());
@@ -157,7 +158,7 @@ export class RowingScene {
     const waterHeightAt = (x, z) => this.#water.heightAt(x, z, elapsed, this.#distance);
 
     this.#water.update(elapsed, this.#distance);
-    this.#course.update(this.#distance, elapsed, waterHeightAt);
+    this.#river.update(this.#distance, elapsed, waterHeightAt);
     this.#boat.update(this.#strokePhase, this.#driving);
     this.#placeBoat(waterHeightAt);
     this.#placeGhost(waterHeightAt, elapsed, delta);
@@ -169,7 +170,7 @@ export class RowingScene {
   #advanceDistance(delta) {
     this.#speed += (this.#targetSpeed - this.#speed) * Math.min(1, delta * 4);
     // Integrate speed between samples, then ease onto the distance the PM5
-    // actually reports. Samples arrive at 4 Hz; this keeps motion smooth
+    // actually reports. Samples arrive at 10 Hz; this keeps motion smooth
     // without letting the scene drift away from the real number.
     this.#distance += this.#speed * delta;
     this.#distance += (this.#targetDistance - this.#distance) * Math.min(1, delta * 2);

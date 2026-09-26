@@ -60,7 +60,8 @@ const fragmentShader = /* glsl */ `
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
     // Grazing angles reflect the sky, steep angles show the dark water.
-    float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 2.5);
+    // A tight reflection lobe: sky only at grazing angles, tea everywhere else.
+    float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 3.6);
     vec3 color = mix(uDeepColor, uSurfaceColor, fresnel);
 
     // Sun glint: a tight specular lobe plus a broad sheen down the sun's path.
@@ -87,8 +88,11 @@ export function createWater({ size = 700, segments = 220, fogColor, fogNear, fog
       uTime: { value: 0 },
       uScroll: { value: 0 },
       uWaveAmp: { value: 1 },
-      uDeepColor: { value: new THREE.Color('#081227') },
-      uSurfaceColor: { value: new THREE.Color('#2d4f7d') },
+      // "Mersey tea": Kejimkujik's water is stained brown by tannins leached
+      // from the peat bogs it drains, so the body of the water is tea, and only
+      // the grazing-angle reflection is sky.
+      uDeepColor: { value: new THREE.Color('#3a2510') },
+      uSurfaceColor: { value: new THREE.Color('#38507a') },
       uSunColor: { value: new THREE.Color('#F5A623') },
       uSunDirection: { value: sunDirection.clone() },
       uFogColor: { value: fogColor.clone() },

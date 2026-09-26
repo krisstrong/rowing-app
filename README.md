@@ -46,11 +46,12 @@ src/rower/                            src/ui/
   pm5Parser.js      pure DataView -> object functions (unit-tested)
   pm5Uuids.js       UUIDs and enums    src/scene/
   SimulatedRower.js fake samples         RowingScene.js  orchestration, camera, loop
-                                       src/paceBoat.js   ghost boat gap arithmetic
                                          water.js        wave shader + CPU mirror
                                          boat.js         hull, oars, rower
-                                         course.js       buoys and banks
+                                         river.js        banks, forest, erratics
+                                         wildlife.js     loon, heron, deer, turtle
                                          sky.js          gradient dome and sun
+                                       src/paceBoat.js   ghost boat gap arithmetic
 ```
 
 `Pm5Connection` and `SimulatedRower` both implement the same **`RowerSource`** interface —
@@ -97,6 +98,30 @@ the oars stay in sync with the handle rather than running on a fixed animation.
 
 The water's wave field lives in a vertex shader, and `water.js` mirrors the same maths
 on the CPU so the boat and buoys can ride the surface. If you change one, change both.
+
+### The river
+
+The setting is the **Mersey River through Kejimkujik National Park**, Nova Scotia, at
+dawn. The details are drawn from Parks Canada's own description of the park rather than
+invented:
+
+- **"Mersey tea."** Keji's water is stained brown by tannins leached from the peat bogs
+  it drains. So the body of the water is tea-coloured and only the grazing-angle
+  reflection is sky — which is why `water.js` uses a tight fresnel lobe.
+- **Acadian forest**, weighted to the eastern hemlock and spruce that form the park's
+  "pure hemlock stands", with white birch and the occasional red maple for the autumn
+  blaze the Mersey is known for. Kept mostly dark on purpose: an orange forest would
+  fight the amber pace number for attention.
+- **Granite erratics** at the water's edge, over slate and quartzite bedrock.
+- **The odd animal** — one per 350 m tile, each where its species actually would be:
+  a common loon riding the water, a great blue heron wading the shallows, a
+  white-tailed deer on the bank, and a **Blanding's turtle** basking on a half-sunk log.
+  The turtle is Keji's signature species — nationally endangered, and the yellow throat
+  modelled on it is how you tell one from any other turtle.
+
+The river is built as three tiles that recycle against distance rowed, each with
+different content, so the landscape repeats every 1050 m rather than every 350. Trees
+and boulders are instanced — about a dozen draw calls for the whole forest.
 
 ### The pace boat
 
@@ -189,5 +214,8 @@ struggling, the wave plane in `water.js` (`segments`) is the first thing to turn
 
 ## Not yet
 
-Scenery and audio; saved sessions, routes and heart-rate straps. Saved sessions would
-make the pace boat much better — racing a previous row rather than a flat target.
+Audio; saved sessions, routes and heart-rate straps. Saved sessions would make the pace
+boat much better — racing a previous row rather than a flat target.
+
+The river is currently the only setting. `RowingScene` composes it from `river.js`, so a
+second location would be another module of the same shape rather than a rewrite.
