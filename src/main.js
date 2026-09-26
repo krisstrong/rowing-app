@@ -4,6 +4,7 @@ import { Pm5Connection } from './rower/Pm5Connection.js';
 import { RowingScene } from './scene/RowingScene.js';
 import { PaceBoat } from './paceBoat.js';
 import { SceneAudio } from './audio.js';
+import { RateLadder } from './rateLadder.js';
 
 const dashboard = new Dashboard();
 const scene = new RowingScene(document.getElementById('scene'));
@@ -11,6 +12,7 @@ scene.start();
 
 const paceBoat = new PaceBoat();
 const audio = new SceneAudio();
+const rateLadder = new RateLadder();
 let latestSample = null;
 let activeSource = null;
 let wasDriving = false;
@@ -31,6 +33,7 @@ async function activate(createSource) {
     if (!driving && wasDriving) audio.playFinish();
     wasDriving = driving;
     audio.setSpeed(sample.speedMps);
+    rateLadder.applySample(sample);
   });
   activeSource.start();
   dashboard.requestWakeLockForSession();
@@ -66,6 +69,11 @@ function adjustPaceBoat(deltaSec) {
   scene.updatePaceBoat(paceBoat.state);
 }
 
+function toggleRateLadder() {
+  if (rateLadder.running) rateLadder.stop();
+  else rateLadder.start();
+}
+
 async function toggleSound() {
   await audio.toggle();
   dashboard.setSoundEnabled(audio.enabled);
@@ -74,12 +82,15 @@ async function toggleSound() {
 dashboard.bindControls({ onConnect: connectRower, onDemo: toggleDemo });
 dashboard.bindPaceBoat({ getState: () => paceBoat.state, onToggle: togglePaceBoat });
 dashboard.bindSound({ onToggle: toggleSound });
+dashboard.bindRateLadder({ getState: () => rateLadder.state, onToggle: toggleRateLadder });
 dashboard.bindKeyboardShortcuts({
   onFullscreenToggle: () => dashboard.toggleFullscreen(),
   onDemoToggle: toggleDemo,
   onPaceBoatToggle: togglePaceBoat,
   onPaceBoatAdjust: adjustPaceBoat,
   onSoundToggle: toggleSound,
+  onLadderToggle: toggleRateLadder,
+  onLadderAdjust: (delta) => rateLadder.adjustWattsPerSpm(delta),
 });
 
 if (!Pm5Connection.isSupported()) {

@@ -26,6 +26,7 @@
         <button class="btn" id="btn-demo" type="button">Demo mode</button>
         <button class="btn" id="btn-pace-boat" type="button" aria-pressed="false">Pace boat</button>
         <button class="btn" id="btn-sound" type="button" aria-pressed="false">Sound</button>
+        <button class="btn" id="btn-ladder" type="button" aria-pressed="false">Rate ladder</button>
         <button class="btn" id="btn-fullscreen" type="button">Full screen</button>
       </div>
     </div>
@@ -35,6 +36,23 @@
     <div class="hero">
       <div class="hero-label">Pace / 500m</div>
       <div class="hero-value" id="stat-pace">–:––.–</div>
+    </div>
+
+    <div class="hud-bottom">
+    <div class="ladder" id="ladder" hidden>
+      <div class="ladder-head">
+        <span class="ladder-step" id="ladder-step">Step 1 / 9</span>
+        <span class="ladder-target" id="ladder-target">Hold 18 spm</span>
+        <span class="ladder-countdown" id="ladder-countdown">1:30</span>
+      </div>
+      <div class="ladder-gauge">
+        <div class="ladder-band" id="ladder-band"></div>
+        <div class="ladder-needle" id="ladder-needle"></div>
+      </div>
+      <div class="ladder-foot">
+        <span class="ladder-hint" id="ladder-hint" data-state="">Get ready</span>
+        <span class="ladder-score" id="ladder-score">0% in zone</span>
+      </div>
     </div>
 
     <div class="pace-boat" id="pace-boat" hidden>
@@ -67,6 +85,7 @@
         <span class="stat-label">Power</span>
         <span class="stat-value" id="stat-power">–<span class="unit">W</span></span>
       </div>
+    </div>
     </div>
   </div>
 

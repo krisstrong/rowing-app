@@ -10,6 +10,7 @@ export class Dashboard {
   #wakeLock = null;
   #activeSource = null;
   #paceBoatState = null;
+  #ladderState = null;
 
   constructor({ root = document } = {}) {
     this.#els = {
@@ -28,6 +29,15 @@ export class Dashboard {
       strokePhaseFill: root.getElementById('stroke-phase-fill'),
       btnPaceBoat: root.getElementById('btn-pace-boat'),
       btnSound: root.getElementById('btn-sound'),
+      btnLadder: root.getElementById('btn-ladder'),
+      ladder: root.getElementById('ladder'),
+      ladderStep: root.getElementById('ladder-step'),
+      ladderTarget: root.getElementById('ladder-target'),
+      ladderCountdown: root.getElementById('ladder-countdown'),
+      ladderBand: root.getElementById('ladder-band'),
+      ladderNeedle: root.getElementById('ladder-needle'),
+      ladderHint: root.getElementById('ladder-hint'),
+      ladderScore: root.getElementById('ladder-score'),
       paceBoat: root.getElementById('pace-boat'),
       paceBoatTarget: root.getElementById('pace-boat-target'),
       paceBoatGap: root.getElementById('pace-boat-gap'),
@@ -50,6 +60,12 @@ export class Dashboard {
     this.#els.btnPaceBoat.addEventListener('click', onToggle);
   }
 
+  /** @param getState returns the RateLadder's `state`; polled in the render loop. */
+  bindRateLadder({ getState, onToggle }) {
+    this.#ladderState = getState;
+    this.#els.btnLadder.addEventListener('click', onToggle);
+  }
+
   bindSound({ onToggle }) {
     this.#els.btnSound.addEventListener('click', onToggle);
   }
@@ -60,7 +76,15 @@ export class Dashboard {
     this.#els.btnSound.classList.toggle('btn-active', enabled);
   }
 
-  bindKeyboardShortcuts({ onFullscreenToggle, onDemoToggle, onPaceBoatToggle, onPaceBoatAdjust, onSoundToggle }) {
+  bindKeyboardShortcuts({
+    onFullscreenToggle,
+    onDemoToggle,
+    onPaceBoatToggle,
+    onPaceBoatAdjust,
+    onSoundToggle,
+    onLadderToggle,
+    onLadderAdjust,
+  }) {
     document.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       const key = event.key.toLowerCase();
@@ -72,6 +96,12 @@ export class Dashboard {
         onPaceBoatToggle();
       } else if (key === 's') {
         onSoundToggle();
+      } else if (key === 'r') {
+        onLadderToggle();
+      } else if (key === '-') {
+        onLadderAdjust(-0.5); // easier power floor
+      } else if (key === '=' || key === '+') {
+        onLadderAdjust(0.5);
       } else if (key === '[') {
         onPaceBoatAdjust(-1); // a second per 500m quicker
       } else if (key === ']') {
@@ -132,6 +162,7 @@ export class Dashboard {
     const loop = () => {
       if (this.#latestSample) this.#renderSample(this.#latestSample);
       if (this.#paceBoatState) this.#renderPaceBoat(this.#paceBoatState());
+      if (this.#ladderState) this.#renderLadder(this.#ladderState());
       this.#rafId = requestAnimationFrame(loop);
     };
     this.#rafId = requestAnimationFrame(loop);
@@ -171,6 +202,45 @@ export class Dashboard {
     gap.textContent = `${Math.abs(gapM).toFixed(1)} m ${youAreUp ? 'up' : 'down'} · ${Math.abs(gapSec).toFixed(1)} s`;
   }
 
+  #renderLadder(state) {
+    const visible = state.running || state.finished;
+    this.#els.ladder.hidden = !visible;
+    this.#els.btnLadder.setAttribute('aria-pressed', String(visible));
+    this.#els.btnLadder.classList.toggle('btn-active', visible);
+    if (!visible) return;
+
+    if (state.finished) {
+      this.#els.ladderStep.textContent = `${state.stepCount} / ${state.stepCount}`;
+      this.#els.ladderTarget.textContent = 'Ladder complete';
+      this.#els.ladderCountdown.textContent = '0:00';
+      this.#els.ladderHint.dataset.state = 'done';
+      this.#els.ladderHint.textContent = 'Done';
+      this.#els.ladderScore.textContent = `${state.zonePercent}% in zone`;
+      return;
+    }
+
+    this.#els.ladderStep.textContent = `Step ${state.stepNumber} / ${state.stepCount}`;
+    this.#els.ladderTarget.textContent = `Hold ${state.targetRate} spm · ${state.powerFloorW}W+`;
+    this.#els.ladderCountdown.textContent = formatElapsed(state.stepRemainingSec);
+
+    const zoneState = state.inZone ? 'in' : state.reason === 'powerLow' ? 'soft' : 'out';
+    this.#els.ladderBand.dataset.state = zoneState;
+    this.#els.ladderNeedle.dataset.state = zoneState;
+
+    this.#els.ladderBand.style.left = `${gaugePosition(state.bandLow)}%`;
+    this.#els.ladderBand.style.width = `${gaugePosition(state.bandHigh) - gaugePosition(state.bandLow)}%`;
+    this.#els.ladderNeedle.style.left = `${gaugePosition(state.rate)}%`;
+
+    this.#els.ladderHint.dataset.state = zoneState;
+    this.#els.ladderHint.textContent = {
+      in: 'In the zone',
+      soft: 'Press harder',
+      rateLow: 'Rate up',
+      rateHigh: 'Ease the rate',
+    }[state.inZone ? 'in' : state.reason === 'powerLow' ? 'soft' : state.reason];
+    this.#els.ladderScore.textContent = `${state.zonePercent}% in zone`;
+  }
+
   async toggleFullscreen() {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
@@ -207,6 +277,15 @@ export class Dashboard {
       await this.#requestWakeLock();
     }
   }
+}
+
+/** The gauge spans 12–34 spm; everything on it is positioned through here. */
+const GAUGE_MIN_SPM = 12;
+const GAUGE_MAX_SPM = 34;
+
+function gaugePosition(rate) {
+  const clamped = Math.min(GAUGE_MAX_SPM, Math.max(GAUGE_MIN_SPM, rate));
+  return ((clamped - GAUGE_MIN_SPM) / (GAUGE_MAX_SPM - GAUGE_MIN_SPM)) * 100;
 }
 
 function formatPace(paceSecPer500) {

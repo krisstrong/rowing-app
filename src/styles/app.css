@@ -190,10 +190,135 @@ button {
   text-shadow: 0 2px 24px rgba(10, 20, 40, 0.85);
 }
 
+/* Everything below the scene's clear middle sits in one group, so the pieces
+   can appear and disappear without fighting over who pushes to the bottom. */
+.hud-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ---------- Rate ladder ---------- */
+
+.ladder {
+  background: rgba(15, 30, 61, 0.55);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(34, 53, 92, 0.9);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.ladder[hidden] {
+  display: none;
+}
+
+.ladder-head,
+.ladder-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--ink-300);
+}
+
+.ladder-step,
+.ladder-countdown {
+  color: var(--ink-500);
+}
+
+.ladder-target {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-100);
+}
+
+.ladder-gauge {
+  position: relative;
+  height: 1.5rem;
+  border-radius: 0.4rem;
+  background: var(--navy-900);
+  border: 1px solid var(--navy-600);
+  overflow: hidden;
+  /* A tick every 2 spm across the 12–34 scale. */
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(159, 173, 201, 0.18) 0 1px,
+    transparent 1px calc(100% / 11)
+  );
+}
+
+.ladder-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(159, 173, 201, 0.22);
+  border-left: 1px solid rgba(234, 238, 247, 0.5);
+  border-right: 1px solid rgba(234, 238, 247, 0.5);
+  transition: left 0.3s ease, width 0.3s ease, background-color 0.2s ease;
+}
+
+.ladder-band[data-state='in'] {
+  background: rgba(62, 207, 142, 0.35);
+}
+
+.ladder-band[data-state='soft'] {
+  background: rgba(245, 166, 35, 0.32);
+}
+
+.ladder-needle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--ink-100);
+  box-shadow: 0 0 8px rgba(10, 20, 40, 0.9);
+  transition: left 0.12s linear, background-color 0.2s ease;
+}
+
+.ladder-needle[data-state='in'] {
+  background: #3ECF8E;
+}
+
+.ladder-needle[data-state='soft'] {
+  background: var(--amber);
+}
+
+.ladder-needle[data-state='out'] {
+  background: #F2718C;
+}
+
+.ladder-hint {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ladder-hint[data-state='in'] { color: #3ECF8E; }
+.ladder-hint[data-state='soft'] { color: var(--amber); }
+.ladder-hint[data-state='out'] { color: #F2718C; }
+.ladder-hint[data-state='done'] { color: var(--ink-100); }
+
+.ladder-score {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-100);
+}
+
 /* ---------- Pace boat ---------- */
 
 .pace-boat {
-  margin-top: auto;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -240,15 +365,9 @@ button {
   color: var(--ink-300);
 }
 
-/* The stroke bar owns the push to the bottom unless the pace boat is showing. */
-.pace-boat:not([hidden]) ~ .stroke-phase {
-  margin-top: 0.5rem;
-}
-
 /* ---------- Stroke phase ---------- */
 
 .stroke-phase {
-  margin-top: auto; /* pushes the stroke bar and stats to the foot of the HUD */
   display: flex;
   align-items: center;
   justify-content: center;

@@ -33,6 +33,7 @@ npm run preview    # serve the built dist/ locally
 | **Demo mode** (`D`) | Runs the simulator — realistic fake data, no rower needed |
 | **Pace boat** (`G`) | Drops a ghost boat into the next lane to race; `[` and `]` shift its target pace by a second per 500m |
 | **Sound** (`S`) | River, hull, oarlocks and the odd loon. Off until you ask — browsers block audio without a gesture anyway |
+| **Rate ladder** (`R`) | The game mode: a pyramid of stroke-rate targets to hold. `-` and `=` tune the power floor to your level |
 | **Full screen** (`F`) | Fullscreen API; `Esc` exits |
 
 The app requests a **Screen Wake Lock** while a session is running, and re-acquires it
@@ -53,6 +54,8 @@ src/rower/                            src/ui/
                                          wildlife.js     loon, heron, deer, turtle
                                          sky.js          gradient dome and sun
                                        src/paceBoat.js   ghost boat gap arithmetic
+                                       src/rateLadder.js game mode scoring
+                                       src/audio.js      synthesised sound
 ```
 
 `Pm5Connection` and `SimulatedRower` both implement the same **`RowerSource`** interface —
@@ -160,6 +163,31 @@ trees throw their shadows: too low and they reach clear across the channel and t
 river sits in shade. And it has to be off the bow rather than dead ahead — rowing
 straight into a low sun silhouettes the entire scene. The current angle is a compromise
 between those and keeping the sun near the edge of frame where you can see it.
+
+### Rate ladder (game mode)
+
+`src/rateLadder.js`. A pyramid of stroke-rate targets — 18-20-22-24-26 and back down,
+90 seconds a step — with a gauge showing the band and where your rating currently sits.
+
+Three design constraints shaped it:
+
+- **The handle is the only input.** You cannot steer, and the PM5 exposes no per-oar
+  data, so anything built on dodging or aiming is impossible. Rating is the one thing
+  you control instantly — pace lags several strokes behind — which makes it the only
+  honest thing to build a game on.
+- **Rate alone is gameable.** You can sit at 28spm with no pressure on the handle and do
+  less work than a committed 20. So you are in the zone only when the rating is in band
+  *and* the power is above a floor that scales with the target rate. `-` and `=` tune
+  that floor (watts per spm) to your level — there is no universal right answer.
+- **The PM5 reports rating as a jittering integer**, so the band is ±2spm. Anything
+  tighter feels unfair through no fault of the rower.
+
+Scoring is time in the zone as a percentage, per step and overall. The clock only
+advances on plausible sample gaps, so pausing, hiding the tab, or the monitor resetting
+its elapsed time can't be used to bank a score.
+
+The pyramid comes back down on purpose: holding a *low* rate when you are already tired
+is the genuinely hard half, and it means the piece ends rowing rather than blown.
 
 ### Sound
 
