@@ -9,7 +9,13 @@ import { createSky } from './sky.js';
 const FOG_COLOR = new THREE.Color('#1e2c4e');
 const FOG_NEAR = 45;
 const FOG_FAR = 270;
-const SUN_DIRECTION = new THREE.Vector3(-0.35, 0.14, -1).normalize();
+// Low morning sun off the port bow rather than dead ahead: straight-ahead
+// backlights the whole river into silhouette, and side light both models the
+// trees and throws their shadows out across the water.
+// Elevation matters more than it looks: much below this and the bank trees
+// throw shadows right across the channel, putting the whole river in shade.
+// Here they reach part way, which gives stripes instead.
+const SUN_DIRECTION = new THREE.Vector3(-0.38, 0.38, -0.85).normalize();
 
 /** How long without a sample before the boat is assumed to have stopped. */
 const SAMPLE_TIMEOUT_SEC = 1.5;
@@ -23,6 +29,9 @@ const GHOST_MAX_GAP_M = 400;
 /** Where the chase camera aims; the reflection pass mirrors this. */
 const LOOK_AT_HEIGHT = 0.6;
 const LOOK_AT_Z = -4;
+
+/** The shadow camera aims here: the stretch of river you actually look at. */
+const SHADOW_FOCUS_Z = -30;
 
 /** Keeps anything under the waterline out of the reflection. */
 const REFLECTION_CLIP = [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)];
@@ -84,13 +93,38 @@ export class RowingScene {
 
     this.#scene.add(createSky({ sunDirection: SUN_DIRECTION, horizonColor: FOG_COLOR }));
 
-    this.#scene.add(new THREE.HemisphereLight('#5d82c0', '#0a1428', 1.1));
-    const sun = new THREE.DirectionalLight('#ffd9a0', 1.7);
-    sun.position.copy(SUN_DIRECTION).multiplyScalar(-60);
-    this.#scene.add(sun);
+    this.#renderer.shadowMap.enabled = true;
+    this.#renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Two render passes a frame (reflection, then main) would otherwise rebuild
+    // the shadow map twice. Flag it once per frame instead.
+    this.#renderer.shadowMap.autoUpdate = false;
 
-    // The sun is ahead of the boat, so without a fill the hull is all shadow.
-    const fill = new THREE.DirectionalLight('#8fb0e8', 0.7);
+    this.#scene.add(new THREE.HemisphereLight('#6f93cd', '#111d33', 0.72));
+
+    // The light has to come FROM where the sky draws the sun, or the shadows
+    // contradict it. The sun sits low, so the shadows it throws are long.
+    const sun = new THREE.DirectionalLight('#ffd9a0', 1.0);
+    sun.position.copy(SUN_DIRECTION).multiplyScalar(90);
+    sun.target.position.set(0, 0, SHADOW_FOCUS_Z);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    // Covers the near water and both banks; everything beyond is in fog anyway.
+    const shadowCamera = sun.shadow.camera;
+    shadowCamera.left = -48;
+    shadowCamera.right = 48;
+    shadowCamera.top = 62;
+    shadowCamera.bottom = -62;
+    shadowCamera.near = 1;
+    shadowCamera.far = 210;
+    shadowCamera.updateProjectionMatrix();
+    sun.shadow.bias = -0.0009;
+    sun.shadow.normalBias = 0.5;
+    this.#scene.add(sun);
+    this.#scene.add(sun.target);
+
+    // The sun is ahead of the boat, so it rim-lights the hull and leaves the
+    // camera side dark. This fill is what keeps the boat readable.
+    const fill = new THREE.DirectionalLight('#8fb0e8', 0.75);
     fill.position.set(6, 12, 20);
     this.#scene.add(fill);
 
@@ -194,6 +228,7 @@ export class RowingScene {
     this.#placeGhost(waterHeightAt, elapsed, delta);
     this.#placeCamera(waterHeightAt);
 
+    this.#renderer.shadowMap.needsUpdate = true;
     this.#renderReflection();
     this.#renderer.render(this.#scene, this.#camera);
   }
@@ -307,8 +342,8 @@ export class RowingScene {
     this.#camera.updateProjectionMatrix();
 
     const pixelRatio = this.#renderer.getPixelRatio();
-    const targetWidth = Math.max(2, Math.floor((width * pixelRatio) / 2));
-    const targetHeight = Math.max(2, Math.floor((height * pixelRatio) / 2));
+    const targetWidth = Math.max(2, Math.floor((width * pixelRatio) / 3));
+    const targetHeight = Math.max(2, Math.floor((height * pixelRatio) / 3));
     this.#reflectionTarget.setSize(targetWidth, targetHeight);
     // The shader divides gl_FragCoord by this, so it must be the size of the
     // main drawing buffer, not the half-size target.

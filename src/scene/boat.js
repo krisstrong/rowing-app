@@ -101,6 +101,13 @@ export function createBoat({ ghost = false } = {}) {
   rower.position.set(0, 0.16, 0);
   group.add(rower);
 
+  group.traverse((object) => {
+    if (!object.isMesh) return;
+    object.castShadow = true;
+    // A translucent ghost casting a solid shadow would give the game away.
+    if (ghost) object.castShadow = false;
+  });
+
   return {
     group,
     /**

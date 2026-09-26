@@ -60,6 +60,7 @@ function createBank(side) {
   const material = new THREE.MeshStandardMaterial({ color: '#2a3324', roughness: 1, flatShading: true });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.scale.x = side;
+  mesh.receiveShadow = true;
   return mesh;
 }
 
@@ -81,7 +82,8 @@ function instanced(geometry, material, transforms) {
 
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  mesh.castShadow = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   return mesh;
 }
 

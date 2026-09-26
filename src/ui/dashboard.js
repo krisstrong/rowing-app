@@ -27,6 +27,7 @@ export class Dashboard {
       strokePhaseWord: root.getElementById('stroke-phase-word'),
       strokePhaseFill: root.getElementById('stroke-phase-fill'),
       btnPaceBoat: root.getElementById('btn-pace-boat'),
+      btnSound: root.getElementById('btn-sound'),
       paceBoat: root.getElementById('pace-boat'),
       paceBoatTarget: root.getElementById('pace-boat-target'),
       paceBoatGap: root.getElementById('pace-boat-gap'),
@@ -49,7 +50,17 @@ export class Dashboard {
     this.#els.btnPaceBoat.addEventListener('click', onToggle);
   }
 
-  bindKeyboardShortcuts({ onFullscreenToggle, onDemoToggle, onPaceBoatToggle, onPaceBoatAdjust }) {
+  bindSound({ onToggle }) {
+    this.#els.btnSound.addEventListener('click', onToggle);
+  }
+
+  /** Reflects audio state, which the button can't know on its own. */
+  setSoundEnabled(enabled) {
+    this.#els.btnSound.setAttribute('aria-pressed', String(enabled));
+    this.#els.btnSound.classList.toggle('btn-active', enabled);
+  }
+
+  bindKeyboardShortcuts({ onFullscreenToggle, onDemoToggle, onPaceBoatToggle, onPaceBoatAdjust, onSoundToggle }) {
     document.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       const key = event.key.toLowerCase();
@@ -59,6 +70,8 @@ export class Dashboard {
         onDemoToggle();
       } else if (key === 'g') {
         onPaceBoatToggle();
+      } else if (key === 's') {
+        onSoundToggle();
       } else if (key === '[') {
         onPaceBoatAdjust(-1); // a second per 500m quicker
       } else if (key === ']') {

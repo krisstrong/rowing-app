@@ -18,6 +18,9 @@ const WAVE_GLSL = /* glsl */ `
 `;
 
 const vertexShader = /* glsl */ `
+  #include <common>
+  #include <shadowmap_pars_vertex>
+
   uniform float uTime;
   uniform float uScroll;
   uniform float uWaveAmp;
@@ -35,15 +38,29 @@ const vertexShader = /* glsl */ `
     float e = 0.35;
     float hx = waveHeight(p + vec2(e, 0.0), uTime);
     float hz = waveHeight(p + vec2(0.0, e), uTime);
-    vNormal = normalize(vec3(h - hx, e, h - hz));
+    vec3 objectNormal = normalize(vec3(h - hx, e, h - hz));
+    vNormal = objectNormal;
 
-    vec3 displaced = vec3(position.x, h, position.z);
-    vWorldPos = (modelMatrix * vec4(displaced, 1.0)).xyz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    vec3 transformed = vec3(position.x, h, position.z);
+    vec4 worldPosition = modelMatrix * vec4(transformed, 1.0);
+    vWorldPos = worldPosition.xyz;
+    gl_Position = projectionMatrix * viewMatrix * worldPosition;
+
+    // Shadow coordinates have to be built from the displaced position, or the
+    // shadows sit flat while the surface moves under them.
+    vec3 transformedNormal = normalMatrix * objectNormal;
+    #include <shadowmap_vertex>
   }
 `;
 
 const fragmentShader = /* glsl */ `
+  #include <common>
+  #include <packing>
+  #include <bsdfs>
+  #include <lights_pars_begin>
+  #include <shadowmap_pars_fragment>
+  #include <shadowmask_pars_fragment>
+
   uniform vec3 uDeepColor;
   uniform vec3 uSurfaceColor;
   uniform vec3 uSunColor;
@@ -63,7 +80,7 @@ const fragmentShader = /* glsl */ `
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
 
     // A tight reflection lobe: sky only at grazing angles, tea everywhere else.
-    float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 3.6);
+    float fresnel = pow(1.0 - clamp(dot(normal, viewDir), 0.0, 1.0), 2.4);
 
     // The mirrored pass shares this camera's projection, so for a plane at y=0
     // the screen coordinate maps straight across. Rippling the lookup by the
@@ -79,8 +96,14 @@ const fragmentShader = /* glsl */ `
     vec3 sunDir = normalize(uSunDirection);
     vec3 halfway = normalize(sunDir + viewDir);
     float glint = pow(max(dot(normal, halfway), 0.0), 220.0);
-    float sheen = pow(max(dot(normal, halfway), 0.0), 14.0) * 0.12;
-    color += uSunColor * (glint * 1.4 + sheen);
+    float sheen = pow(max(dot(normal, halfway), 0.0), 11.0) * 0.2;
+
+    // Shadows fall across the water as long dawn stripes off the bank trees.
+    // They kill the glint rather than darkening the tea much — shaded water
+    // mostly loses its sparkle.
+    float shadow = getShadowMask();
+    color += uSunColor * (glint * 1.4 + sheen) * shadow;
+    color *= mix(0.88, 1.0, shadow);
 
     float depth = length(cameraPosition - vWorldPos);
     float fog = smoothstep(uFogNear, uFogFar, depth);
@@ -92,10 +115,11 @@ export function createWater({ size = 700, segments = 220, fogColor, fogNear, fog
   const geometry = new THREE.PlaneGeometry(size, size, segments, segments);
   geometry.rotateX(-Math.PI / 2);
 
-  const material = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    uniforms: {
+  // Merging in the light uniforms and setting lights:true is what gives the
+  // shadow chunks above the data they need.
+  const uniforms = THREE.UniformsUtils.merge([
+    THREE.UniformsLib.lights,
+    {
       uTime: { value: 0 },
       uScroll: { value: 0 },
       uWaveAmp: { value: 1 },
@@ -113,10 +137,18 @@ export function createWater({ size = 700, segments = 220, fogColor, fogNear, fog
       uResolution: { value: new THREE.Vector2(1, 1) },
       uReflectionAmount: { value: 0 },
     },
+  ]);
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
+    lights: true,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.frustumCulled = false;
+  mesh.receiveShadow = true;
 
   return {
     mesh,

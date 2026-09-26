@@ -32,6 +32,7 @@ npm run preview    # serve the built dist/ locally
 | **Connect rower** | Opens Chrome's device chooser, filtered to names starting with `PM5` |
 | **Demo mode** (`D`) | Runs the simulator — realistic fake data, no rower needed |
 | **Pace boat** (`G`) | Drops a ghost boat into the next lane to race; `[` and `]` shift its target pace by a second per 500m |
+| **Sound** (`S`) | River, hull, oarlocks and the odd loon. Off until you ask — browsers block audio without a gesture anyway |
 | **Full screen** (`F`) | Fullscreen API; `Esc` exits |
 
 The app requests a **Screen Wake Lock** while a session is running, and re-acquires it
@@ -136,7 +137,32 @@ What makes it read as real water:
   the camera, so a strong wake reads as a grey road; mist you are inside of reads as
   fog, so each band fades out as it comes at you.
 
-The reflection pass doubles the draw calls and still holds 60fps.
+- **Shadows**, including on the water. Three's shadow chunks are wired into the custom
+  water shader (`lights: true`, merged light uniforms, shadow coordinates built from the
+  *displaced* vertex so shadows move with the surface). On water they mostly kill the
+  glint rather than darkening the tea, which is how shaded water actually behaves.
+
+The reflection pass doubles the draw calls and still holds 60fps. Shadows are flagged
+once per frame with `shadowMap.autoUpdate = false`, otherwise the two passes rebuild the
+shadow map twice.
+
+**The sun's position is load-bearing, in two ways.** Its elevation sets how far the bank
+trees throw their shadows: too low and they reach clear across the channel and the whole
+river sits in shade. And it has to be off the bow rather than dead ahead — rowing
+straight into a low sun silhouettes the entire scene. The current angle is a compromise
+between those and keeping the sun near the edge of frame where you can see it.
+
+### Sound
+
+`src/audio.js` synthesises everything through Web Audio — no sample files, so nothing to
+download and nothing to licence. A lowpassed noise bed for the river, a bandpassed one
+for water against the hull that rises with boat speed, a triangle-wave knock plus a
+noise burst for the oarlock and the blades biting at the catch, and a softer pair at the
+finish for the release and the seat running up the slide.
+
+The loon is the fussy one: a sine wail that rises, holds and falls, with a 5.5 Hz vibrato
+(a steady tone sounds like a theremin, not a bird) and a delay line for the echo across
+the water. It calls every 40–95 seconds.
 
 ### The pace boat
 
@@ -229,8 +255,8 @@ struggling, the wave plane in `water.js` (`segments`) is the first thing to turn
 
 ## Not yet
 
-Audio; saved sessions, routes and heart-rate straps. Saved sessions would make the pace
-boat much better — racing a previous row rather than a flat target.
+Saved sessions, routes and heart-rate straps. Saved sessions would make the pace boat
+much better — racing a previous row rather than a flat target.
 
 The river is currently the only setting. `RowingScene` composes it from `river.js`, so a
 second location would be another module of the same shape rather than a rewrite.

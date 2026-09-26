@@ -3,14 +3,17 @@ import { SimulatedRower } from './rower/SimulatedRower.js';
 import { Pm5Connection } from './rower/Pm5Connection.js';
 import { RowingScene } from './scene/RowingScene.js';
 import { PaceBoat } from './paceBoat.js';
+import { SceneAudio } from './audio.js';
 
 const dashboard = new Dashboard();
 const scene = new RowingScene(document.getElementById('scene'));
 scene.start();
 
 const paceBoat = new PaceBoat();
+const audio = new SceneAudio();
 let latestSample = null;
 let activeSource = null;
+let wasDriving = false;
 
 /** Swap the active RowerSource. A fresh instance each time keeps state clean. */
 async function activate(createSource) {
@@ -22,6 +25,12 @@ async function activate(createSource) {
     scene.applySample(sample);
     paceBoat.applySample(sample);
     scene.updatePaceBoat(paceBoat.state);
+
+    const driving = sample.strokeState === 'driving';
+    if (driving && !wasDriving) audio.playCatch();
+    if (!driving && wasDriving) audio.playFinish();
+    wasDriving = driving;
+    audio.setSpeed(sample.speedMps);
   });
   activeSource.start();
   dashboard.requestWakeLockForSession();
@@ -57,13 +66,20 @@ function adjustPaceBoat(deltaSec) {
   scene.updatePaceBoat(paceBoat.state);
 }
 
+async function toggleSound() {
+  await audio.toggle();
+  dashboard.setSoundEnabled(audio.enabled);
+}
+
 dashboard.bindControls({ onConnect: connectRower, onDemo: toggleDemo });
 dashboard.bindPaceBoat({ getState: () => paceBoat.state, onToggle: togglePaceBoat });
+dashboard.bindSound({ onToggle: toggleSound });
 dashboard.bindKeyboardShortcuts({
   onFullscreenToggle: () => dashboard.toggleFullscreen(),
   onDemoToggle: toggleDemo,
   onPaceBoatToggle: togglePaceBoat,
   onPaceBoatAdjust: adjustPaceBoat,
+  onSoundToggle: toggleSound,
 });
 
 if (!Pm5Connection.isSupported()) {
