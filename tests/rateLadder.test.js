@@ -31,8 +31,8 @@ describe('zone detection', () => {
   it('counts a rating inside the band with enough power', () => {
     const ladder = new RateLadder();
     ladder.start();
-    ladder.applySample(sample(18, 200, 0));
-    ladder.applySample(sample(18, 200, 0.1));
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 0));
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 0.1));
     expect(ladder.state.inZone).toBe(true);
     expect(ladder.state.reason).toBe(null);
   });
@@ -67,7 +67,7 @@ describe('zone detection', () => {
     const ladder = new RateLadder();
     ladder.start();
     const firstFloor = ladder.state.powerFloorW;
-    row(ladder, { rate: 18, power: 300, seconds: STEP_SECONDS + 1 });
+    row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: STEP_SECONDS + 1 });
     const secondFloor = ladder.state.powerFloorW;
     expect(LADDER_STEPS[1]).toBeGreaterThan(LADDER_STEPS[0]);
     expect(secondFloor).toBeGreaterThan(firstFloor);
@@ -78,8 +78,9 @@ describe('scoring', () => {
   it('accumulates only the time spent in the zone', () => {
     const ladder = new RateLadder();
     ladder.start();
-    let at = row(ladder, { rate: 18, power: 300, seconds: 10 });
-    at = row(ladder, { rate: 30, power: 300, seconds: 10, startAt: at }); // way over rate
+    let at = row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: 10 });
+    // Well outside the band in the other direction.
+    at = row(ladder, { rate: LADDER_STEPS[0] + 10, power: 400, seconds: 10, startAt: at });
     const state = ladder.state;
     expect(state.timeInZoneSec).toBeGreaterThan(9);
     expect(state.timeInZoneSec).toBeLessThan(11);
@@ -89,23 +90,23 @@ describe('scoring', () => {
 
   it('ignores time while it is not running', () => {
     const ladder = new RateLadder();
-    row(ladder, { rate: 18, power: 300, seconds: 10 });
+    row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: 10 });
     expect(ladder.state.timeInZoneSec).toBe(0);
   });
 
   it('does not count a backwards jump when the monitor resets', () => {
     const ladder = new RateLadder();
     ladder.start();
-    ladder.applySample(sample(18, 300, 100));
-    ladder.applySample(sample(18, 300, 0));
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 100));
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 0));
     expect(ladder.state.timeInZoneSec).toBe(0);
   });
 
   it('does not credit a long gap as time rowed', () => {
     const ladder = new RateLadder();
     ladder.start();
-    ladder.applySample(sample(18, 300, 0));
-    ladder.applySample(sample(18, 300, 45)); // tab was hidden
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 0));
+    ladder.applySample(sample(LADDER_STEPS[0], 400, 45)); // tab was hidden
     expect(ladder.state.timeInZoneSec).toBe(0);
   });
 });
@@ -115,7 +116,7 @@ describe('step progression', () => {
     const ladder = new RateLadder();
     ladder.start();
     expect(ladder.state.targetRate).toBe(LADDER_STEPS[0]);
-    row(ladder, { rate: 18, power: 300, seconds: STEP_SECONDS + 1 });
+    row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: STEP_SECONDS + 1 });
     expect(ladder.state.targetRate).toBe(LADDER_STEPS[1]);
     expect(ladder.state.stepNumber).toBe(2);
   });
@@ -123,7 +124,7 @@ describe('step progression', () => {
   it('records a result for each completed step', () => {
     const ladder = new RateLadder();
     ladder.start();
-    row(ladder, { rate: 18, power: 300, seconds: STEP_SECONDS + 1 });
+    row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: STEP_SECONDS + 1 });
     const [first] = ladder.state.results;
     expect(first.targetRate).toBe(LADDER_STEPS[0]);
     expect(first.zonePercent).toBeGreaterThan(95);
@@ -133,7 +134,7 @@ describe('step progression', () => {
     const ladder = new RateLadder();
     ladder.start();
     // Row the whole pyramid at a rating that is only ever right for the ends.
-    row(ladder, { rate: 18, power: 300, seconds: STEP_SECONDS * LADDER_STEPS.length + 2 });
+    row(ladder, { rate: LADDER_STEPS[0], power: 400, seconds: STEP_SECONDS * LADDER_STEPS.length + 2 });
     const state = ladder.state;
     expect(state.finished).toBe(true);
     expect(state.running).toBe(false);

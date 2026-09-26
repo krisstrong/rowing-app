@@ -13,8 +13,11 @@
  * erg attached.
  */
 
-/** Up and back down. Rowing the rate back down while tired is the hard half. */
-export const LADDER_STEPS = [18, 20, 22, 24, 26, 24, 22, 20, 18];
+/**
+ * Up and back down, 24 at the ends and 32 at the peak. Rowing the rate back
+ * down while tired is the hard half.
+ */
+export const LADDER_STEPS = [24, 26, 28, 30, 32, 30, 28, 26, 24];
 export const STEP_SECONDS = 90;
 
 /** The PM5 reports rating as a jittering integer, so the band needs slack. */

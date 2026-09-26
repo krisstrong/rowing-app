@@ -166,8 +166,9 @@ between those and keeping the sun near the edge of frame where you can see it.
 
 ### Rate ladder (game mode)
 
-`src/rateLadder.js`. A pyramid of stroke-rate targets — 18-20-22-24-26 and back down,
+`src/rateLadder.js`. A pyramid of stroke-rate targets — 24-26-28-30-32 and back down,
 90 seconds a step — with a gauge showing the band and where your rating currently sits.
+Nothing below 24, so it is a working piece throughout rather than a warm-up that builds.
 
 Three design constraints shaped it:
 
@@ -178,7 +179,8 @@ Three design constraints shaped it:
 - **Rate alone is gameable.** You can sit at 28spm with no pressure on the handle and do
   less work than a committed 20. So you are in the zone only when the rating is in band
   *and* the power is above a floor that scales with the target rate. `-` and `=` tune
-  that floor (watts per spm) to your level — there is no universal right answer.
+  that floor (watts per spm) to your level — there is no universal right answer. The
+  default of 5W per spm puts it at 120W at rate 24 and 160W at rate 32.
 - **The PM5 reports rating as a jittering integer**, so the band is ±2spm. Anything
   tighter feels unfair through no fault of the rower.
 
@@ -186,8 +188,12 @@ Scoring is time in the zone as a percentage, per step and overall. The clock onl
 advances on plausible sample gaps, so pausing, hiding the tab, or the monitor resetting
 its elapsed time can't be used to bank a score.
 
-The pyramid comes back down on purpose: holding a *low* rate when you are already tired
-is the genuinely hard half, and it means the piece ends rowing rather than blown.
+The pyramid comes back down on purpose: holding a *lower* rate when you are already
+tired is the genuinely hard half, and it means the piece ends rowing rather than blown.
+
+The gauge spans 18–36spm — wide enough for the whole ladder plus its bands with a little
+air either side. Change `LADDER_STEPS` and the gauge range together, or the bands end up
+crammed against an edge.
 
 ### Sound
 

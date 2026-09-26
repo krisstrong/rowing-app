@@ -279,9 +279,13 @@ export class Dashboard {
   }
 }
 
-/** The gauge spans 12–34 spm; everything on it is positioned through here. */
-const GAUGE_MIN_SPM = 12;
-const GAUGE_MAX_SPM = 34;
+/**
+ * The gauge spans 18–36 spm: wide enough to show the 24–32 ladder with its
+ * bands and a little air either side, without wasting half the bar on ratings
+ * the ladder never asks for. Everything on it is positioned through here.
+ */
+const GAUGE_MIN_SPM = 18;
+const GAUGE_MAX_SPM = 36;
 
 function gaugePosition(rate) {
   const clamped = Math.min(GAUGE_MAX_SPM, Math.max(GAUGE_MIN_SPM, rate));
