@@ -122,16 +122,24 @@ Two details worth knowing, both verified against the spec rather than assumed:
   3 dwellingAfterDrive, 4 recovery`. The dashboard shows drive vs everything-else; the
   raw value is passed through on the sample for the future scene to use.
 
-## Hosting on GitHub Pages
+## Hosting
 
-Web Bluetooth needs HTTPS, which Pages provides.
+Live at **https://krisstrong.github.io/rowing-app/** — Web Bluetooth needs HTTPS, which
+Pages provides, so the PM5 connects from there exactly as it does from localhost.
 
-1. `npm run build`
-2. Publish `dist/` — either push it to a `gh-pages` branch, or commit it and point
-   Pages at it in the repository's **Settings → Pages**.
-3. If the site is served from a subpath (`user.github.io/rowing-app/`), set
-   `base: '/rowing-app/'` in a `vite.config.js` before building, otherwise the asset
-   URLs will 404.
+To publish a change:
+
+```bash
+npm run deploy      # builds, then pushes dist/ to the gh-pages branch
+```
+
+Pages serves the `gh-pages` branch; `master` holds the source. `vite.config.js` sets
+`base` to `/rowing-app/` for builds only, so the dev server stays at the root of
+localhost. Renaming the repo would change that path and break the asset URLs.
+
+There's deliberately no GitHub Actions workflow — deploying from the CLI avoids needing
+the `workflow` token scope, and this is a one-person project where a manual `npm run
+deploy` is less machinery than a pipeline.
 
 ## Troubleshooting
 
