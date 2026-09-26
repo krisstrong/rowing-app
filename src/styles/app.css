@@ -149,6 +149,11 @@ button {
   border-color: var(--amber-lo);
 }
 
+.btn-active {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -183,6 +188,61 @@ button {
   color: var(--amber);
   font-variant-numeric: tabular-nums;
   text-shadow: 0 2px 24px rgba(10, 20, 40, 0.85);
+}
+
+/* ---------- Pace boat ---------- */
+
+.pace-boat {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-family: var(--font-mono);
+}
+
+.pace-boat[hidden] {
+  display: none;
+}
+
+.pace-boat-label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.pace-boat-target {
+  font-size: 1.1rem;
+  color: var(--ink-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.pace-boat-gap {
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 16px rgba(10, 20, 40, 0.9);
+}
+
+.pace-boat-gap[data-side='up'] {
+  color: #3ECF8E;
+}
+
+.pace-boat-gap[data-side='down'] {
+  color: #F2718C;
+}
+
+.pace-boat-gap[data-side='even'] {
+  color: var(--ink-300);
+}
+
+/* The stroke bar owns the push to the bottom unless the pace boat is showing. */
+.pace-boat:not([hidden]) ~ .stroke-phase {
+  margin-top: 0.5rem;
 }
 
 /* ---------- Stroke phase ---------- */
@@ -285,6 +345,14 @@ button {
 @media (max-width: 760px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pace-boat-target {
+    font-size: 0.95rem;
+  }
+
+  .pace-boat-gap {
+    font-size: 1.1rem;
   }
 }
 

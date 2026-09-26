@@ -31,6 +31,7 @@ npm run preview    # serve the built dist/ locally
 | --- | --- |
 | **Connect rower** | Opens Chrome's device chooser, filtered to names starting with `PM5` |
 | **Demo mode** (`D`) | Runs the simulator — realistic fake data, no rower needed |
+| **Pace boat** (`G`) | Drops a ghost boat into the next lane to race; `[` and `]` shift its target pace by a second per 500m |
 | **Full screen** (`F`) | Fullscreen API; `Esc` exits |
 
 The app requests a **Screen Wake Lock** while a session is running, and re-acquires it
@@ -45,6 +46,7 @@ src/rower/                            src/ui/
   pm5Parser.js      pure DataView -> object functions (unit-tested)
   pm5Uuids.js       UUIDs and enums    src/scene/
   SimulatedRower.js fake samples         RowingScene.js  orchestration, camera, loop
+                                       src/paceBoat.js   ghost boat gap arithmetic
                                          water.js        wave shader + CPU mirror
                                          boat.js         hull, oars, rower
                                          course.js       buoys and banks
@@ -95,6 +97,21 @@ the oars stay in sync with the handle rather than running on a fixed animation.
 
 The water's wave field lives in a vertex shader, and `water.js` mirrors the same maths
 on the CPU so the boat and buoys can ride the surface. If you change one, change both.
+
+### The pace boat
+
+`src/paceBoat.js` holds a boat that rows a constant target pace. It is deliberately
+neither a `RowerSource` nor part of the scene — it is derived data that the scene and
+the HUD both read, which keeps the gap arithmetic unit-testable without a renderer.
+
+Turning it on starts it **level with you**, at whatever pace you are currently pulling,
+so "hold this" costs one keystroke. Adjusting the target re-anchors it at its current
+position, so it speeds up or slows down from where it is rather than teleporting.
+
+`gapM` is the pace boat's lead: positive means it is ahead of you, negative means you
+are up on it. The HUD reads *down* and *up* respectively; the scene turns the same
+number into a z offset (ahead is −z) and eases onto it, since samples arrive at 10 Hz
+and the scene draws at 60.
 
 `prefers-reduced-motion` flattens the waves and drops the camera's speed effects.
 
@@ -172,4 +189,5 @@ struggling, the wave plane in `water.js` (`segments`) is the first thing to turn
 
 ## Not yet
 
-Scenery, audio and a pace/ghost boat (v3); saved sessions, routes and heart-rate straps.
+Scenery and audio; saved sessions, routes and heart-rate straps. Saved sessions would
+make the pace boat much better — racing a previous row rather than a flat target.

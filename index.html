@@ -24,6 +24,7 @@
       <div class="controls">
         <button class="btn btn-primary" id="btn-connect" type="button">Connect rower</button>
         <button class="btn" id="btn-demo" type="button">Demo mode</button>
+        <button class="btn" id="btn-pace-boat" type="button" aria-pressed="false">Pace boat</button>
         <button class="btn" id="btn-fullscreen" type="button">Full screen</button>
       </div>
     </div>
@@ -33,6 +34,12 @@
     <div class="hero">
       <div class="hero-label">Pace / 500m</div>
       <div class="hero-value" id="stat-pace">–:––.–</div>
+    </div>
+
+    <div class="pace-boat" id="pace-boat" hidden>
+      <span class="pace-boat-label">Pace boat</span>
+      <span class="pace-boat-target" id="pace-boat-target">2:00.0</span>
+      <span class="pace-boat-gap" id="pace-boat-gap" data-side="even">even</span>
     </div>
 
     <div class="stroke-phase">

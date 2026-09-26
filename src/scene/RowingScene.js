@@ -12,6 +12,12 @@ const SUN_DIRECTION = new THREE.Vector3(-0.35, 0.14, -1).normalize();
 /** How long without a sample before the boat is assumed to have stopped. */
 const SAMPLE_TIMEOUT_SEC = 1.5;
 
+/** The pace boat rows the next lane over, and at a steady rating. */
+const GHOST_LANE_OFFSET_M = -2.4;
+const GHOST_STROKE_RATE = 24;
+/** Past this gap it is lost in the fog either way, so stop drawing it. */
+const GHOST_MAX_GAP_M = 400;
+
 /**
  * The v2 lake scene. It consumes the same RowingSample stream as the
  * dashboard — distanceM drives the world scroll, speedMps the camera feel,
@@ -23,7 +29,10 @@ export class RowingScene {
   #camera;
   #water;
   #boat;
+  #ghost;
   #course;
+  #paceBoat = { enabled: false, gapM: 0 };
+  #renderedGap = 0;
   #clock = new THREE.Clock();
 
   #distance = 0;
@@ -76,6 +85,11 @@ export class RowingScene {
     this.#boat = createBoat();
     this.#scene.add(this.#boat.group);
 
+    this.#ghost = createBoat({ ghost: true });
+    this.#ghost.group.visible = false;
+    this.#ghost.group.position.x = GHOST_LANE_OFFSET_M;
+    this.#scene.add(this.#ghost.group);
+
     this.#course = createCourse();
     this.#scene.add(this.#course.group);
 
@@ -113,6 +127,14 @@ export class RowingScene {
     this.#secondsSinceSample = 0;
   }
 
+  /** @param state the PaceBoat's `state`, or anything with `enabled` and `gapM`. */
+  updatePaceBoat(state) {
+    // Snap on the way in, so enabling it doesn't slide the ghost up from wherever
+    // the last race left off.
+    if (state.enabled && !this.#paceBoat.enabled) this.#renderedGap = state.gapM;
+    this.#paceBoat = state;
+  }
+
   /** Called when a source stops, so the boat glides to a halt rather than freezing. */
   rest() {
     this.#targetSpeed = 0;
@@ -138,6 +160,7 @@ export class RowingScene {
     this.#course.update(this.#distance, elapsed, waterHeightAt);
     this.#boat.update(this.#strokePhase, this.#driving);
     this.#placeBoat(waterHeightAt);
+    this.#placeGhost(waterHeightAt, elapsed, delta);
     this.#placeCamera(waterHeightAt);
 
     this.#renderer.render(this.#scene, this.#camera);
@@ -171,6 +194,34 @@ export class RowingScene {
     group.position.y = (bow + stern) / 2 + 0.06;
     group.rotation.x = this.#pitch + Math.atan2(stern - bow, 7) * 0.5;
     group.rotation.z = (waterHeightAt(0.6, 0) - waterHeightAt(-0.6, 0)) * 0.35;
+  }
+
+  #placeGhost(waterHeightAt, elapsed, delta) {
+    const { enabled, gapM } = this.#paceBoat;
+    // Samples land at 10 Hz but we draw at 60, so ease onto the reported gap
+    // rather than stepping the ghost along with each one.
+    this.#renderedGap += (gapM - this.#renderedGap) * Math.min(1, delta * 6);
+
+    const visible = enabled && Math.abs(this.#renderedGap) < GHOST_MAX_GAP_M;
+    this.#ghost.group.visible = visible;
+    if (!visible) return;
+
+    // Ahead of you is -Z, which is exactly the sign of the gap reversed.
+    const z = -this.#renderedGap;
+    const group = this.#ghost.group;
+    group.position.z = z;
+
+    const bow = waterHeightAt(GHOST_LANE_OFFSET_M, z - 3.5);
+    const stern = waterHeightAt(GHOST_LANE_OFFSET_M, z + 3.5);
+    group.position.y = (bow + stern) / 2 + 0.06;
+    group.rotation.x = Math.atan2(stern - bow, 7) * 0.5;
+
+    // It rows a metronome stroke — there is no real rower to take timing from.
+    const cycleSec = 60 / GHOST_STROKE_RATE;
+    const cyclePos = (elapsed % cycleSec) / cycleSec;
+    const driving = cyclePos < 0.35;
+    const phase = driving ? cyclePos / 0.35 : 1 - (cyclePos - 0.35) / 0.65;
+    this.#ghost.update(phase, driving);
   }
 
   #placeCamera(waterHeightAt) {

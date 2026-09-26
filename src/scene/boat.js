@@ -33,10 +33,32 @@ function makeOar(side, materials) {
   return oar;
 }
 
-export function createBoat() {
+/** The pace boat is the same hull rendered as a pale, see-through apparition. */
+function ghostMaterials() {
+  const make = (color, opacity) =>
+    new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.6,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    });
+  return {
+    hull: make('#cfe0ff', 0.34),
+    deck: make('#9FADC9', 0.3),
+    shaft: make('#dce6f8', 0.34),
+    blade: make('#eaf1ff', 0.42),
+    handle: make('#9FADC9', 0.3),
+    body: make('#b8ccf0', 0.34),
+    skin: make('#d5e2fa', 0.34),
+    rigger: make('#cfe0ff', 0.3),
+  };
+}
+
+export function createBoat({ ghost = false } = {}) {
   const group = new THREE.Group();
 
-  const materials = {
+  const materials = ghost ? ghostMaterials() : {
     hull: new THREE.MeshStandardMaterial({ color: '#dfe6f3', roughness: 0.45, metalness: 0.05 }),
     deck: new THREE.MeshStandardMaterial({ color: '#17284A', roughness: 0.8 }),
     shaft: new THREE.MeshStandardMaterial({ color: '#c9d3e6', roughness: 0.5 }),

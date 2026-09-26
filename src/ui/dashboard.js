@@ -9,6 +9,7 @@ export class Dashboard {
   #rafId = null;
   #wakeLock = null;
   #activeSource = null;
+  #paceBoatState = null;
 
   constructor({ root = document } = {}) {
     this.#els = {
@@ -25,10 +26,15 @@ export class Dashboard {
       power: root.getElementById('stat-power'),
       strokePhaseWord: root.getElementById('stroke-phase-word'),
       strokePhaseFill: root.getElementById('stroke-phase-fill'),
+      btnPaceBoat: root.getElementById('btn-pace-boat'),
+      paceBoat: root.getElementById('pace-boat'),
+      paceBoatTarget: root.getElementById('pace-boat-target'),
+      paceBoatGap: root.getElementById('pace-boat-gap'),
     };
 
     this.#els.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
     document.addEventListener('visibilitychange', () => this.#reacquireWakeLockIfNeeded());
+    this.#startRenderLoop(); // the pace boat HUD updates before any rower is connected
   }
 
   /** Wire up Connect/Demo buttons to callbacks supplied by main.js. */
@@ -37,7 +43,13 @@ export class Dashboard {
     this.#els.btnDemo.addEventListener('click', onDemo);
   }
 
-  bindKeyboardShortcuts({ onFullscreenToggle, onDemoToggle }) {
+  /** @param getState returns the PaceBoat's current state; polled in the render loop. */
+  bindPaceBoat({ getState, onToggle }) {
+    this.#paceBoatState = getState;
+    this.#els.btnPaceBoat.addEventListener('click', onToggle);
+  }
+
+  bindKeyboardShortcuts({ onFullscreenToggle, onDemoToggle, onPaceBoatToggle, onPaceBoatAdjust }) {
     document.addEventListener('keydown', (event) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
       const key = event.key.toLowerCase();
@@ -45,6 +57,12 @@ export class Dashboard {
         onFullscreenToggle();
       } else if (key === 'd') {
         onDemoToggle();
+      } else if (key === 'g') {
+        onPaceBoatToggle();
+      } else if (key === '[') {
+        onPaceBoatAdjust(-1); // a second per 500m quicker
+      } else if (key === ']') {
+        onPaceBoatAdjust(1);
       } else if (key === 'escape' && document.fullscreenElement) {
         document.exitFullscreen();
       }
@@ -100,6 +118,7 @@ export class Dashboard {
     if (this.#rafId) return;
     const loop = () => {
       if (this.#latestSample) this.#renderSample(this.#latestSample);
+      if (this.#paceBoatState) this.#renderPaceBoat(this.#paceBoatState());
       this.#rafId = requestAnimationFrame(loop);
     };
     this.#rafId = requestAnimationFrame(loop);
@@ -117,6 +136,26 @@ export class Dashboard {
     this.#els.strokePhaseWord.dataset.phase = phase;
     this.#els.strokePhaseFill.dataset.phase = phase;
     this.#els.strokePhaseFill.style.width = phase === 'driving' ? '100%' : '0%';
+  }
+
+  #renderPaceBoat({ enabled, targetPaceSecPer500, gapM, gapSec }) {
+    this.#els.paceBoat.hidden = !enabled;
+    this.#els.btnPaceBoat.setAttribute('aria-pressed', String(enabled));
+    this.#els.btnPaceBoat.classList.toggle('btn-active', enabled);
+    if (!enabled) return;
+
+    this.#els.paceBoatTarget.textContent = `${formatPace(targetPaceSecPer500)} /500m`;
+
+    const gap = this.#els.paceBoatGap;
+    if (Math.abs(gapM) < 1) {
+      gap.dataset.side = 'even';
+      gap.textContent = 'even';
+      return;
+    }
+    // gapM is the pace boat's lead, so a negative gap means you are up on it.
+    const youAreUp = gapM < 0;
+    gap.dataset.side = youAreUp ? 'up' : 'down';
+    gap.textContent = `${Math.abs(gapM).toFixed(1)} m ${youAreUp ? 'up' : 'down'} · ${Math.abs(gapSec).toFixed(1)} s`;
   }
 
   async toggleFullscreen() {

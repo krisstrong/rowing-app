@@ -2,11 +2,14 @@ import { Dashboard } from './ui/dashboard.js';
 import { SimulatedRower } from './rower/SimulatedRower.js';
 import { Pm5Connection } from './rower/Pm5Connection.js';
 import { RowingScene } from './scene/RowingScene.js';
+import { PaceBoat } from './paceBoat.js';
 
 const dashboard = new Dashboard();
 const scene = new RowingScene(document.getElementById('scene'));
 scene.start();
 
+const paceBoat = new PaceBoat();
+let latestSample = null;
 let activeSource = null;
 
 /** Swap the active RowerSource. A fresh instance each time keeps state clean. */
@@ -14,7 +17,12 @@ async function activate(createSource) {
   if (activeSource) await activeSource.stop();
   activeSource = createSource();
   dashboard.attach(activeSource);
-  activeSource.on('sample', (sample) => scene.applySample(sample));
+  activeSource.on('sample', (sample) => {
+    latestSample = sample;
+    scene.applySample(sample);
+    paceBoat.applySample(sample);
+    scene.updatePaceBoat(paceBoat.state);
+  });
   activeSource.start();
   dashboard.requestWakeLockForSession();
 }
@@ -33,10 +41,29 @@ function toggleDemo() {
   activate(() => new SimulatedRower());
 }
 
+/** Starting it level with your current pace makes "hold this" a single keystroke. */
+function togglePaceBoat() {
+  if (paceBoat.enabled) {
+    paceBoat.disable();
+  } else {
+    paceBoat.enable(latestSample?.paceSecPer500);
+  }
+  scene.updatePaceBoat(paceBoat.state);
+}
+
+function adjustPaceBoat(deltaSec) {
+  if (!paceBoat.enabled) return;
+  paceBoat.adjustTargetPace(deltaSec);
+  scene.updatePaceBoat(paceBoat.state);
+}
+
 dashboard.bindControls({ onConnect: connectRower, onDemo: toggleDemo });
+dashboard.bindPaceBoat({ getState: () => paceBoat.state, onToggle: togglePaceBoat });
 dashboard.bindKeyboardShortcuts({
   onFullscreenToggle: () => dashboard.toggleFullscreen(),
   onDemoToggle: toggleDemo,
+  onPaceBoatToggle: togglePaceBoat,
+  onPaceBoatAdjust: adjustPaceBoat,
 });
 
 if (!Pm5Connection.isSupported()) {
